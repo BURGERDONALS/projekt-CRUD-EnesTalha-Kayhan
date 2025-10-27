@@ -10,11 +10,12 @@ Node.js (wersja 14 lub nowsza)
 Instalacja
 Skopiuj pliki projektu do folderu
 
-package.json
-server.js
-index.html
-style.css
-script.js
+yourfilename/
+├── package.json
+├── server.js
+├── index.html
+├── style.css
+└── script.js
 
 Otwórz terminal w folderze projektu i zainstaluj zależności:
 ```bash
