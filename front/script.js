@@ -3,12 +3,10 @@ const API_URL = 'https://stock-tracker-linq.onrender.com/api/products';
 
 // DOM loaded event
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Stock Tracker App Initialized');
     initializeApp();
 });
 
 function initializeApp() {
-    // Form event listeners
     const form = document.getElementById('productForm');
     const resetBtn = document.getElementById('resetBtn');
     
@@ -20,7 +18,6 @@ function initializeApp() {
     form.addEventListener('submit', onFormSubmit);
     resetBtn.addEventListener('click', resetForm);
     
-    // Load initial products
     loadProducts();
 }
 
@@ -28,7 +25,6 @@ async function loadProducts() {
     try {
         showMessage('Loading products...', 'loading');
         
-        console.log('Fetching products from:', API_URL);
         const response = await fetch(API_URL);
         
         if (!response.ok) {
@@ -36,7 +32,6 @@ async function loadProducts() {
         }
         
         const products = await response.json();
-        console.log('Products loaded:', products);
         
         const tableBody = document.querySelector("#storeList tbody");
         if (!tableBody) {
@@ -68,7 +63,6 @@ async function loadProducts() {
             cell4.textContent = `$${parseFloat(product.perprice || 0).toFixed(2)}`;
             cell5.innerHTML = `<button onclick="onEdit(this)">Edit</button> <button onclick="onDelete(this)">Delete</button>`;
             
-            // Add data labels for mobile
             cell1.setAttribute('data-label', 'Product Code');
             cell2.setAttribute('data-label', 'Product Name');
             cell3.setAttribute('data-label', 'Quantity');
@@ -77,7 +71,6 @@ async function loadProducts() {
         });
         
         hideMessage();
-        showMessage('Products loaded successfully!', 'success');
         
     } catch (error) {
         console.error('Error loading products:', error);
@@ -96,7 +89,6 @@ async function onFormSubmit(e) {
         submitBtn.textContent = 'Processing...';
         
         const formData = readFormData();
-        console.log('Form data:', formData);
         
         if (!validateFormData(formData)) {
             showMessage('Please fill all fields correctly.', 'error');
@@ -172,7 +164,6 @@ function onEdit(td) {
     
     document.getElementById("submitBtn").textContent = "Update";
     
-    // Scroll to form
     document.querySelector('.form-section').scrollIntoView({ 
         behavior: 'smooth' 
     });
@@ -217,7 +208,6 @@ async function onDelete(td) {
         row.remove();
         showMessage('Product deleted successfully!', 'success');
         
-        // Reload if table is empty
         const tableBody = document.querySelector("#storeList tbody");
         if (tableBody.rows.length === 0) {
             await loadProducts();
@@ -239,7 +229,6 @@ function resetForm() {
     selectedRow = null;
 }
 
-// Message functions
 function showMessage(text, type) {
     hideMessage();
     
@@ -252,7 +241,6 @@ function showMessage(text, type) {
     const firstChild = container.firstChild;
     container.insertBefore(messageDiv, firstChild);
     
-    // Auto remove after 5 seconds for success/error
     if (type !== 'loading') {
         setTimeout(() => {
             if (messageDiv.parentNode) {
@@ -269,11 +257,5 @@ function hideMessage() {
     }
 }
 
-// Global functions for button clicks
 window.onEdit = onEdit;
 window.onDelete = onDelete;
-
-// Error handling for global functions
-window.onload = function() {
-    console.log('Window loaded, app ready');
-};
