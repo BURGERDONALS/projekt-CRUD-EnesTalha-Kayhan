@@ -4,7 +4,7 @@ Link do Online: https://stocktrack1.netlify.app/
 
 🛠️ Instalacja i uruchomienie
 
-Wymagania
+###Wymagania
 -**Node.js (wersja 14 lub nowsza)**
 
 Instalacja
