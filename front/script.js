@@ -1,5 +1,16 @@
 var selectedRow = null;
-const API_URL = 'https://stock-tracker-linq.onrender.com/api/products';
+
+// Environment detection - works for both local and production
+const getApiUrl = () => {
+    // If we're on localhost, use local backend
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        return 'http://localhost:5000/api/products';
+    }
+    // Otherwise use production backend
+    return 'https://stock-tracker-linq.onrender.com/api/products';
+};
+
+const API_URL = getApiUrl();
 
 // DOM loaded event
 document.addEventListener('DOMContentLoaded', function() {
@@ -57,10 +68,10 @@ async function loadProducts() {
             const cell4 = newRow.insertCell(3);
             const cell5 = newRow.insertCell(4);
             
-            cell1.textContent = product.productcode || '';
+            cell1.textContent = product.productcode || product.productCode || '';
             cell2.textContent = product.product || '';
             cell3.textContent = product.qty || '';
-            cell4.textContent = `$${parseFloat(product.perprice || 0).toFixed(2)}`;
+            cell4.textContent = `$${parseFloat(product.perprice || product.perPrice || 0).toFixed(2)}`;
             cell5.innerHTML = `<button onclick="onEdit(this)">Edit</button> <button onclick="onDelete(this)">Delete</button>`;
             
             cell1.setAttribute('data-label', 'Product Code');
