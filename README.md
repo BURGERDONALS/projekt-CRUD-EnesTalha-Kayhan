@@ -1,5 +1,6 @@
 # projekt-CRUD-EnesTalha-Kayhan
 Możesz uruchomić ten projekt zarówno lokalnie, jak i online.
+Link do Online: https://stocktrack1.netlify.app/
 
 🛠️ Instalacja i uruchomienie
 
