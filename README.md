@@ -1,4 +1,4 @@
-# projek-CRUD-EnesTalha-Kayhan
+# projekt-CRUD-EnesTalha-Kayhan
 Możesz uruchomić ten projekt zarówno lokalnie, jak i online.
 
 🛠️ Instalacja i uruchomienie
