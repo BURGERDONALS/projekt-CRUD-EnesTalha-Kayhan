@@ -12,9 +12,13 @@ Skopiuj pliki projektu do folderu
 
 yourfilename/
 ├── package.json
+|
 ├── server.js
+|
 ├── index.html
+|
 ├── style.css
+|
 └── script.js
 
 Otwórz terminal w folderze projektu i zainstaluj zależności:
