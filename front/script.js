@@ -25,27 +25,63 @@ function initializeApp() {
     checkAuthAndLoadProducts();
 }
 
-// Basit authentication kontrolü
+// URL'den parametreleri al
+function getUrlParams() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const email = urlParams.get('email');
+    
+    console.log('URL Parameters:', { token: token ? 'exists' : 'missing', email: email || 'missing' });
+    
+    return { token, email };
+}
+
+// Authentication kontrolü - URL parametrelerini de kontrol et
 async function checkAuthAndLoadProducts() {
-    const token = localStorage.getItem('token');
-    const userEmail = localStorage.getItem('auth_email');
+    // Önce URL parametrelerini kontrol et
+    const urlParams = getUrlParams();
+    const urlToken = urlParams.token;
+    const urlEmail = urlParams.email;
+    
+    // Sonra localStorage'ı kontrol et
+    const localToken = localStorage.getItem('token');
+    const localEmail = localStorage.getItem('auth_email');
     
     console.log('StockTrack Auth check:', { 
-        token: token ? 'exists' : 'missing',
-        authEmail: userEmail || 'missing'
+        urlToken: urlToken ? 'exists' : 'missing',
+        urlEmail: urlEmail || 'missing',
+        localToken: localToken ? 'exists' : 'missing',
+        localEmail: localEmail || 'missing'
     });
     
-    // Eğer token veya email yoksa direkt login'e gönder
-    if (!token || !userEmail) {
-        console.log('No authentication found in localStorage, redirecting to login');
+    let finalToken = localToken || urlToken;
+    let finalEmail = localEmail || urlEmail;
+    
+    // Eğer URL'den token gelmişse, localStorage'a kaydet
+    if (urlToken && urlEmail) {
+        console.log('Saving URL parameters to localStorage...');
+        localStorage.setItem('token', urlToken);
+        localStorage.setItem('auth_email', urlEmail);
+        localStorage.setItem('user', JSON.stringify({ email: urlEmail }));
+        
+        // URL'den parametreleri temizle
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        finalToken = urlToken;
+        finalEmail = urlEmail;
+    }
+    
+    // Eğer hala token veya email yoksa login'e gönder
+    if (!finalToken || !finalEmail) {
+        console.log('No authentication found, redirecting to login');
         window.location.href = AUTH_URL;
         return;
     }
     
     // Token ve email varsa, doğrudan ürünleri yükle
     try {
-        console.log('Authentication found, setting up interface...');
-        setupUserHeader(userEmail);
+        console.log('Authentication found, setting up interface for:', finalEmail);
+        setupUserHeader(finalEmail);
         await loadProducts();
     } catch (error) {
         console.error('Error in StockTrack:', error);
