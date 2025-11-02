@@ -1,7 +1,7 @@
 {
-  "name": "auth-system",
+  "name": "auth-system-backend",
   "version": "1.0.0",
-  "description": "Authentication system with PostgreSQL",
+  "description": "Authentication backend with PostgreSQL",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

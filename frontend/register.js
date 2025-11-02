@@ -1,8 +1,33 @@
+// API Configuration
+const API_BASE_URL = 'https://your-auth-backend.onrender.com';
+
+// DOM Elements
 const registerForm = document.getElementById('registerForm');
 const loginLink = document.getElementById('loginLink');
 const registerBtn = document.getElementById('registerBtn');
 const errorMessage = document.getElementById('errorMessage');
 const successMessage = document.getElementById('successMessage');
+const backendStatus = document.getElementById('backendStatus');
+
+// Check backend connection on load
+async function checkBackendConnection() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/health`);
+        const data = await response.json();
+        
+        if (response.ok) {
+            backendStatus.textContent = 'Connected ✅';
+            backendStatus.style.color = '#4CAF50';
+        } else {
+            backendStatus.textContent = 'Error ❌';
+            backendStatus.style.color = '#ff6b6b';
+        }
+    } catch (error) {
+        backendStatus.textContent = 'Offline ❌';
+        backendStatus.style.color = '#ff6b6b';
+        console.error('Backend connection failed:', error);
+    }
+}
 
 // Show error message
 function showError(message) {
@@ -47,7 +72,6 @@ registerForm.addEventListener('submit', async (e) => {
 
     clearMessages();
     
-    // Validate inputs
     const passwordError = validatePassword(password, confirmPassword);
     if (passwordError) {
         showError(passwordError);
@@ -58,7 +82,7 @@ registerForm.addEventListener('submit', async (e) => {
     registerBtn.textContent = 'Creating Account...';
 
     try {
-        const response = await fetch('/register', {
+        const response = await fetch(`${API_BASE_URL}/register`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -69,23 +93,23 @@ registerForm.addEventListener('submit', async (e) => {
         const data = await response.json();
 
         if (response.ok) {
-            // Registration successful
             showSuccess('Account created successfully! Redirecting to login...');
             registerForm.reset();
             
-            // Redirect to login page after 2 seconds
             setTimeout(() => {
                 window.location.href = '/';
             }, 2000);
         } else {
-            // Registration failed
             showError('Error: ' + data.error);
         }
     } catch (error) {
         console.error('Error:', error);
-        showError('Server error! Please try again.');
+        showError('Server error! Please check backend connection.');
     } finally {
         registerBtn.disabled = false;
         registerBtn.textContent = 'Create Account';
     }
 });
+
+// Initialize
+document.addEventListener('DOMContentLoaded', checkBackendConnection);
