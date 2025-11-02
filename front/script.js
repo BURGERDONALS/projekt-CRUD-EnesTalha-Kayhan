@@ -25,15 +25,14 @@ function initializeApp() {
     checkAuthAndLoadProducts();
 }
 
-// Authentication check
+// Authentication check - FIXED LOOP ISSUE
 async function checkAuthAndLoadProducts() {
     const token = localStorage.getItem('token');
     const userEmail = localStorage.getItem('auth_email');
     
     console.log('Auth check:', { 
         hasToken: !!token, 
-        hasEmail: !!userEmail,
-        currentUrl: window.location.href 
+        hasEmail: !!userEmail
     });
     
     // If no token, redirect to login
@@ -43,13 +42,36 @@ async function checkAuthAndLoadProducts() {
         return;
     }
     
-    // If token exists, load products directly
+    // Verify token is still valid
     try {
-        console.log('Token found, loading products...');
+        const response = await fetch(`${API_BASE_URL}/api/user-info`, {
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
+        });
+        
+        if (response.status === 401) {
+            console.log('Token invalid, redirecting to login');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('auth_email');
+            window.location.href = AUTH_URL;
+            return;
+        }
+        
+        if (!response.ok) {
+            throw new Error('Token validation failed');
+        }
+        
+        console.log('Token valid, loading products...');
         setupUserHeader(userEmail);
         await loadProducts();
+        
     } catch (error) {
-        console.error('Error loading products:', error);
+        console.error('Token validation error:', error);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('auth_email');
         window.location.href = AUTH_URL;
     }
 }
@@ -91,6 +113,7 @@ function setupUserHeader(email) {
                 border-radius: 4px;
                 cursor: pointer;
                 font-size: 12px;
+                transition: background 0.3s ease;
             ">Profile</button>
             <button id="logoutBtn" style="
                 background: #e74c3c;
@@ -100,6 +123,7 @@ function setupUserHeader(email) {
                 border-radius: 4px;
                 cursor: pointer;
                 font-size: 12px;
+                transition: background 0.3s ease;
             ">Logout</button>
         </div>
     `;
@@ -114,17 +138,37 @@ function setupUserHeader(email) {
         container.insertBefore(header, firstChild);
     }
     
+    // Add hover effects
+    const profileBtn = document.getElementById('profileBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    
+    profileBtn.addEventListener('mouseenter', () => {
+        profileBtn.style.background = '#2980b9';
+    });
+    profileBtn.addEventListener('mouseleave', () => {
+        profileBtn.style.background = '#3498db';
+    });
+    
+    logoutBtn.addEventListener('mouseenter', () => {
+        logoutBtn.style.background = '#c0392b';
+    });
+    logoutBtn.addEventListener('mouseleave', () => {
+        logoutBtn.style.background = '#e74c3c';
+    });
+    
     // Logout event listener
-    document.getElementById('logoutBtn').addEventListener('click', function() {
+    logoutBtn.addEventListener('click', function() {
         console.log('Logout clicked');
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('auth_email');
-        window.location.href = AUTH_URL;
+        if (confirm('Are you sure you want to logout?')) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('auth_email');
+            window.location.href = AUTH_URL;
+        }
     });
     
     // Profile event listener
-    document.getElementById('profileBtn').addEventListener('click', async function() {
+    profileBtn.addEventListener('click', async function() {
         const token = localStorage.getItem('token');
         if (!token) return;
         
@@ -138,9 +182,12 @@ function setupUserHeader(email) {
             if (response.ok) {
                 const profile = await response.json();
                 alert(`Profile Information:\n\nEmail: ${profile.email}\nRole: ${profile.role}\nMember since: ${new Date(profile.created_at).toLocaleDateString()}`);
+            } else {
+                alert('Error fetching profile information');
             }
         } catch (error) {
             console.error('Profile fetch error:', error);
+            alert('Error fetching profile information');
         }
     });
 }
@@ -224,7 +271,7 @@ async function loadProducts() {
     }
 }
 
-// Other functions remain the same...
+// Rest of the functions remain the same...
 async function onFormSubmit(e) {
     e.preventDefault();
     
