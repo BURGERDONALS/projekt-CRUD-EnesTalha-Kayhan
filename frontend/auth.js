@@ -1,5 +1,5 @@
 // API Configuration
-const API_BASE_URL = 'https://your-auth-backend.onrender.com';
+const API_BASE_URL = 'https://projekt-crud-enestalha-kayhan.onrender.com';
 const STOCKTRACK_URL = 'https://stocktrack1.netlify.app';
 
 // DOM Elements
