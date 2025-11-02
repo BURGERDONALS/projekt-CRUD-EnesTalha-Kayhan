@@ -3,11 +3,10 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const path = require('path');
-require('dotenv').config();
 
 const { Pool } = require('pg');
 
-// PostgreSQL connection
+// PostgreSQL connection for Render
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
@@ -15,7 +14,12 @@ const pool = new Pool({
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-for-development';
+
+// Middleware
+app.use(express.json());
+app.use(cors());
+app.use(express.static('.'));
 
 // Initialize database on startup
 async function initializeDatabase() {
@@ -53,17 +57,11 @@ async function initializeDatabase() {
   }
 }
 
-// Middleware
-app.use(express.json());
-app.use(cors());
-app.use(express.static('.'));
-
-// Public route - home page
+// Routes
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Serve register page
 app.get('/register', (req, res) => {
   res.sendFile(path.join(__dirname, 'register.html'));
 });
@@ -73,7 +71,6 @@ app.post('/register', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Validation
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
@@ -82,7 +79,6 @@ app.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    // Check if email exists
     const existingUser = await pool.query(
       'SELECT id FROM users WHERE email = $1',
       [email]
@@ -92,10 +88,8 @@ app.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Email already exists' });
     }
 
-    // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Create new user
     const newUser = await pool.query(
       'INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3) RETURNING id, email, role, created_at',
       [email, passwordHash, 'USER']
@@ -116,12 +110,10 @@ app.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Validation
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    // Find user
     const userResult = await pool.query(
       'SELECT * FROM users WHERE email = $1',
       [email]
@@ -132,14 +124,12 @@ app.post('/login', async (req, res) => {
     }
 
     const user = userResult.rows[0];
-
-    // Check password
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+    
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    // Create JWT token
     const token = jwt.sign(
       { 
         userId: user.id, 
@@ -165,7 +155,7 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Protected route example
+// Protected routes
 app.get('/api/protected', authenticateToken, (req, res) => {
   res.json({ 
     message: 'This is a protected endpoint!',
@@ -173,7 +163,6 @@ app.get('/api/protected', authenticateToken, (req, res) => {
   });
 });
 
-// Get all users (for demo only - protected)
 app.get('/api/users', authenticateToken, async (req, res) => {
   try {
     const usersResult = await pool.query(
@@ -181,26 +170,6 @@ app.get('/api/users', authenticateToken, async (req, res) => {
     );
     res.json(usersResult.rows);
   } catch (error) {
-    console.error('Get users error:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Get current user profile
-app.get('/api/profile', authenticateToken, async (req, res) => {
-  try {
-    const userResult = await pool.query(
-      'SELECT id, email, role, created_at FROM users WHERE id = $1',
-      [req.user.userId]
-    );
-    
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    res.json(userResult.rows[0]);
-  } catch (error) {
-    console.error('Profile error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -223,7 +192,7 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// Health check endpoint
+// Health check
 app.get('/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
@@ -245,10 +214,9 @@ app.get('/health', async (req, res) => {
 async function startServer() {
   await initializeDatabase();
   
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📊 Health check: http://localhost:${PORT}/health`);
-    console.log(`🔑 Test user: test@test.com / password`);
+    console.log(`📍 Health check: http://0.0.0.0:${PORT}/health`);
   });
 }
 
