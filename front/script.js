@@ -1,6 +1,6 @@
 var selectedRow = null;
 
-// Backend URL - TEK backend kullan
+// Backend URL
 const API_BASE_URL = 'https://projekt-crud-enestalha-kayhan.onrender.com';
 const AUTH_URL = 'https://authpage67829.netlify.app';
 
@@ -25,7 +25,7 @@ function initializeApp() {
     checkAuthAndLoadProducts();
 }
 
-// Basit auth kontrolü
+// Authentication check
 async function checkAuthAndLoadProducts() {
     const token = localStorage.getItem('token');
     const userEmail = localStorage.getItem('auth_email');
@@ -36,14 +36,14 @@ async function checkAuthAndLoadProducts() {
         currentUrl: window.location.href 
     });
     
-    // Eğer token yoksa direkt login'e gönder
+    // If no token, redirect to login
     if (!token || !userEmail) {
         console.log('No authentication found, redirecting to login');
         window.location.href = AUTH_URL;
         return;
     }
     
-    // Token varsa, doğrudan ürünleri yükle
+    // If token exists, load products directly
     try {
         console.log('Token found, loading products...');
         setupUserHeader(userEmail);
@@ -54,7 +54,7 @@ async function checkAuthAndLoadProducts() {
     }
 }
 
-// Header'a kullanıcı bilgilerini ekle
+// Setup user header in top-left position
 function setupUserHeader(email) {
     console.log('Setting up user header for:', email);
     
@@ -62,28 +62,46 @@ function setupUserHeader(email) {
     header.style.cssText = `
         background: #2c3e50;
         color: white;
-        padding: 15px 25px;
+        padding: 12px 20px;
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-bottom: 20px;
         border-radius: 8px;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     `;
     
     header.innerHTML = `
-        <div>
-            <strong style="color: #4CAF50;">Welcome, ${email}</strong>
-            <div style="font-size: 12px; color: #bdc3c7;">StockTrack Dashboard - You are successfully logged in</div>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="background: #4CAF50; width: 8px; height: 8px; border-radius: 50%;"></div>
+            <div>
+                <strong style="color: white; font-size: 14px;">Welcome, ${email}</strong>
+                <div style="font-size: 11px; color: #bdc3c7; margin-top: 2px;">StockTrack Dashboard</div>
+            </div>
         </div>
-        <button id="logoutBtn" style="
-            background: #e74c3c;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-        ">Logout</button>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button id="profileBtn" style="
+                background: #3498db;
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 12px;
+            ">Profile</button>
+            <button id="logoutBtn" style="
+                background: #e74c3c;
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 12px;
+            ">Logout</button>
+        </div>
     `;
     
     const container = document.querySelector('.container');
@@ -103,6 +121,27 @@ function setupUserHeader(email) {
         localStorage.removeItem('user');
         localStorage.removeItem('auth_email');
         window.location.href = AUTH_URL;
+    });
+    
+    // Profile event listener
+    document.getElementById('profileBtn').addEventListener('click', async function() {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/profile`, {
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            });
+            
+            if (response.ok) {
+                const profile = await response.json();
+                alert(`Profile Information:\n\nEmail: ${profile.email}\nRole: ${profile.role}\nMember since: ${new Date(profile.created_at).toLocaleDateString()}`);
+            }
+        } catch (error) {
+            console.error('Profile fetch error:', error);
+        }
     });
 }
 
@@ -185,7 +224,7 @@ async function loadProducts() {
     }
 }
 
-// Diğer fonksiyonlar aynı kalacak...
+// Other functions remain the same...
 async function onFormSubmit(e) {
     e.preventDefault();
     
@@ -367,5 +406,5 @@ function hideMessage() {
 window.onEdit = onEdit;
 window.onDelete = onDelete;
 
-// Sayfa yüklendiğinde console'a mesaj yaz
+// Page loaded message
 console.log('StockTrack application initialized');
