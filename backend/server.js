@@ -41,9 +41,10 @@ app.use(cors({
 // Middleware
 app.use(express.json());
 
-// Initialize database
+// Initialize database - Hem users hem products tabloları
 async function initializeDatabase() {
   try {
+    // Users tablosu - Authentication için
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -54,8 +55,23 @@ async function initializeDatabase() {
       )
     `);
 
-    await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
+    // Products tablosu - StockTrack için
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS products (
+        id SERIAL PRIMARY KEY,
+        productCode VARCHAR(50) NOT NULL,
+        product VARCHAR(100) NOT NULL,
+        qty INTEGER NOT NULL,
+        perPrice DECIMAL(10,2) NOT NULL,
+        user_email VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
 
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_products_user_email ON products(user_email)`);
+
+    // Test user
     const testPasswordHash = await bcrypt.hash('password', 10);
     
     await pool.query(`
@@ -64,7 +80,7 @@ async function initializeDatabase() {
       ON CONFLICT (email) DO NOTHING
     `, ['test@test.com', testPasswordHash, 'USER']);
 
-    console.log('✅ Auth Database initialized successfully');
+    console.log('✅ Database initialized successfully');
     console.log('👤 Test user: test@test.com / password');
     
   } catch (error) {
@@ -72,15 +88,44 @@ async function initializeDatabase() {
   }
 }
 
+// Token verification middleware
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid token' });
+    }
+    req.user = user;
+    next();
+  });
+}
+
+// ========== AUTH ROUTES ==========
+
 // Routes
 app.get('/', (req, res) => {
   res.json({ 
-    message: 'Auth System API is running!',
+    message: 'StockTrack & Auth API is running!',
     endpoints: {
-      register: 'POST /register',
-      login: 'POST /login',
-      protected: 'GET /api/protected',
-      users: 'GET /api/users',
+      auth: {
+        register: 'POST /register',
+        login: 'POST /login',
+        profile: 'GET /api/profile',
+        users: 'GET /api/users'
+      },
+      products: {
+        list: 'GET /api/products',
+        create: 'POST /api/products',
+        update: 'PUT /api/products/:id',
+        delete: 'DELETE /api/products/:id',
+        userInfo: 'GET /api/user-info'
+      },
       health: 'GET /health'
     }
   });
@@ -176,7 +221,7 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Protected routes
+// Protected auth routes
 app.get('/api/protected', authenticateToken, (req, res) => {
   res.json({ 
     message: 'This is a protected endpoint!',
@@ -214,23 +259,94 @@ app.get('/api/profile', authenticateToken, async (req, res) => {
   }
 });
 
-// Token verification middleware
-function authenticateToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+// ========== STOCKTRACK ROUTES ==========
 
-  if (!token) {
-    return res.status(401).json({ error: 'Access token required' });
-  }
-
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ error: 'Invalid token' });
-    }
-    req.user = user;
-    next();
+// User info endpoint - Token validation için
+app.get('/api/user-info', authenticateToken, async (req, res) => {
+  res.json({
+    email: req.user.email,
+    role: req.user.role,
+    userId: req.user.userId
   });
-}
+});
+
+// Get all products for authenticated user
+app.get('/api/products', authenticateToken, async (req, res) => {
+  try {
+    const products = await pool.query(
+      'SELECT * FROM products WHERE user_email = $1 ORDER BY id DESC',
+      [req.user.email]
+    );
+    res.json(products.rows);
+  } catch (err) {
+    console.error('Error fetching products:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Add new product
+app.post('/api/products', authenticateToken, async (req, res) => {
+  const { productCode, product, qty, perPrice } = req.body;
+  
+  if (!productCode || !product || !qty || !perPrice) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+  
+  try {
+    const result = await pool.query(
+      'INSERT INTO products (productCode, product, qty, perPrice, user_email) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [productCode, product, parseInt(qty), parseFloat(perPrice), req.user.email]
+    );
+    
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error adding product:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update product
+app.put('/api/products/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { productCode, product, qty, perPrice } = req.body;
+  
+  try {
+    const result = await pool.query(
+      'UPDATE products SET productCode = $1, product = $2, qty = $3, perPrice = $4 WHERE id = $5 AND user_email = $6 RETURNING *',
+      [productCode, product, parseInt(qty), parseFloat(perPrice), parseInt(id), req.user.email]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating product:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete product
+app.delete('/api/products/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    const result = await pool.query(
+      'DELETE FROM products WHERE id = $1 AND user_email = $2 RETURNING *',
+      [parseInt(id), req.user.email]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    res.json({ message: 'Product deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting product:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // Health check
 app.get('/health', async (req, res) => {
@@ -256,7 +372,7 @@ async function startServer() {
   await initializeDatabase();
   
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Auth Server running on port ${PORT}`);
+    console.log(`🚀 Combined Server running on port ${PORT}`);
     console.log(`📍 Health check: http://0.0.0.0:${PORT}/health`);
     console.log(`🔑 Test user: test@test.com / password`);
   });
