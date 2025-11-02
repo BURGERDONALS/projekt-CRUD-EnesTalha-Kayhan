@@ -1,16 +1,15 @@
 var selectedRow = null;
 
-// Environment detection - works for both local and production
+// Environment detection
 const getApiUrl = () => {
-    // If we're on localhost, use local backend
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        return 'http://localhost:5000/api/products';
+        return 'http://localhost:5000/api';
     }
-    // Otherwise use production backend
-    return 'https://stock-tracker-linq.onrender.com/api/products';
+    return 'https://your-stocktrack-backend.onrender.com/api';
 };
 
-const API_URL = getApiUrl();
+const API_BASE_URL = getApiUrl();
+const AUTH_URL = 'https://authpage67829.netlify.app';
 
 // DOM loaded event
 document.addEventListener('DOMContentLoaded', function() {
@@ -29,14 +28,91 @@ function initializeApp() {
     form.addEventListener('submit', onFormSubmit);
     resetBtn.addEventListener('click', resetForm);
     
-    loadProducts();
+    checkAuthAndLoadProducts();
 }
 
+// Auth kontrolü ve kullanıcı bilgilerini yükle
+async function checkAuthAndLoadProducts() {
+    const token = localStorage.getItem('token');
+    const userEmail = localStorage.getItem('auth_email');
+    
+    if (!token || !userEmail) {
+        window.location.href = AUTH_URL;
+        return;
+    }
+    
+    setupUserHeader(userEmail);
+    await loadProducts();
+}
+
+// Header'a kullanıcı bilgilerini ekle
+function setupUserHeader(email) {
+    const header = document.createElement('div');
+    header.style.cssText = `
+        background: #2c3e50;
+        color: white;
+        padding: 15px 25px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        border-radius: 8px;
+    `;
+    
+    header.innerHTML = `
+        <div>
+            <strong style="color: #4CAF50;">Welcome, ${email}</strong>
+            <div style="font-size: 12px; color: #bdc3c7;">You are logged in successfully</div>
+        </div>
+        <button id="logoutBtn" style="
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        ">Logout</button>
+    `;
+    
+    const container = document.querySelector('.container');
+    const existingHeader = document.getElementById('userHeader');
+    if (existingHeader) {
+        existingHeader.innerHTML = header.innerHTML;
+    } else {
+        header.id = 'userHeader';
+        const firstChild = container.firstChild;
+        container.insertBefore(header, firstChild);
+    }
+    
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+}
+
+// Logout fonksiyonu
+function logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('auth_email');
+    window.location.href = AUTH_URL;
+}
+
+// Load products with authentication
 async function loadProducts() {
     try {
         showMessage('Loading products...', 'loading');
         
-        const response = await fetch(API_URL);
+        const token = localStorage.getItem('token');
+        
+        const response = await fetch(`${API_BASE_URL}/products`, {
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
+        });
+        
+        if (response.status === 401) {
+            logout();
+            return;
+        }
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -148,10 +224,13 @@ function validateFormData(data) {
 }
 
 async function insertNewRecord(data) {
-    const response = await fetch(API_URL, {
+    const token = localStorage.getItem('token');
+    
+    const response = await fetch(`${API_BASE_URL}/products`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
         },
         body: JSON.stringify(data)
     });
@@ -182,11 +261,13 @@ function onEdit(td) {
 
 async function updateRecord(formData) {
     const productId = selectedRow.getAttribute('data-id');
+    const token = localStorage.getItem('token');
     
-    const response = await fetch(`${API_URL}/${productId}`, {
+    const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
         },
         body: JSON.stringify(formData)
     });
@@ -206,10 +287,14 @@ async function onDelete(td) {
     
     const row = td.closest('tr');
     const productId = row.getAttribute('data-id');
+    const token = localStorage.getItem('token');
     
     try {
-        const response = await fetch(`${API_URL}/${productId}`, {
-            method: 'DELETE'
+        const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
         });
         
         if (!response.ok) {
