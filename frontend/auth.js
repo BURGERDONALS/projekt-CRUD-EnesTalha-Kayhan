@@ -38,16 +38,31 @@ async function checkBackendConnection() {
 function checkAuthStatus() {
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
+    const authEmail = localStorage.getItem('auth_email');
     
-    if (token && user) {
-        const userData = JSON.parse(user);
-        showUserInfo(userData);
-        showSuccess('You are already logged in. Redirecting to StockTrack...');
-        
-        // Hızlı redirect - 1 saniye
-        setTimeout(() => {
-            window.location.href = STOCKTRACK_URL;
-        }, 1000);
+    console.log('Auth status check:', { 
+        token: token ? 'exists' : 'missing',
+        user: user ? 'exists' : 'missing', 
+        authEmail: authEmail || 'missing'
+    });
+    
+    if (token && user && authEmail) {
+        try {
+            const userData = JSON.parse(user);
+            showUserInfo(userData);
+            showSuccess('You are already logged in. Redirecting to StockTrack...');
+            
+            // Hızlı redirect - 1.5 saniye
+            setTimeout(() => {
+                console.log('Auto-redirecting to StockTrack...');
+                window.location.href = STOCKTRACK_URL;
+            }, 1500);
+        } catch (error) {
+            console.error('Error parsing user data:', error);
+            localStorage.clear();
+        }
+    } else {
+        console.log('Not logged in, showing login form');
     }
 }
 
@@ -92,6 +107,8 @@ loginForm.addEventListener('submit', async (e) => {
     loginBtn.textContent = 'Logging in...';
 
     try {
+        console.log('Attempting login for:', email);
+        
         const response = await fetch(`${API_BASE_URL}/login`, {
             method: 'POST',
             headers: {
@@ -101,25 +118,30 @@ loginForm.addEventListener('submit', async (e) => {
         });
 
         const data = await response.json();
+        console.log('Login response:', data);
 
         if (response.ok) {
+            // Tüm gerekli dataları kaydet
             localStorage.setItem('token', data.token);
             localStorage.setItem('user', JSON.stringify(data.user));
             localStorage.setItem('auth_email', data.user.email);
             
+            console.log('Login successful, data saved to localStorage');
+            
             showSuccess('Login successful! Redirecting to StockTrack...');
             showUserInfo(data.user);
             
-            // Hızlı redirect - 1 saniye
+            // Hızlı redirect - 1.5 saniye
             setTimeout(() => {
+                console.log('Redirecting to StockTrack...');
                 window.location.href = STOCKTRACK_URL;
-            }, 1000);
+            }, 1500);
             
         } else {
             showError('Error: ' + data.error);
         }
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Login error:', error);
         showError('Server error! Please check backend connection.');
     } finally {
         loginBtn.disabled = false;
@@ -135,6 +157,7 @@ forgotPassword.addEventListener('click', (e) => {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('Login page initialized');
     checkBackendConnection();
     checkAuthStatus();
 });
