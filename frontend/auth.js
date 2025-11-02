@@ -1,5 +1,5 @@
 // API Configuration
-const API_BASE_URL = 'https://projekt-crud-enestalha-kayhan.onrender.com'; // Replace with your Render backend URL
+const API_BASE_URL = 'https://your-auth-backend.onrender.com';
 const STOCKTRACK_URL = 'https://stocktrack1.netlify.app';
 
 // DOM Elements
@@ -37,7 +37,7 @@ async function checkBackendConnection() {
     }
 }
 
-// Check if user is already logged in
+// Check if user is already logged in - Loop önleyici
 function checkAuthStatus() {
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
@@ -47,9 +47,17 @@ function checkAuthStatus() {
         showUserInfo(userData);
         showSuccess('You are already logged in. Redirecting to StockTrack...');
         
-        setTimeout(() => {
-            window.location.href = STOCKTRACK_URL;
-        }, 2000);
+        // Redirect loop kontrolü
+        const redirectCheck = localStorage.getItem('redirect_check');
+        if (redirectCheck !== 'true') {
+            setTimeout(() => {
+                localStorage.setItem('redirect_check', 'true');
+                window.location.href = STOCKTRACK_URL;
+            }, 2000);
+        } else {
+            console.log('Redirect loop detected, staying on login page');
+            localStorage.removeItem('redirect_check');
+        }
     }
 }
 
@@ -85,7 +93,7 @@ function clearMessages() {
     successMessage.style.display = 'none';
 }
 
-// Login process
+// Login process - Loop önleyici
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -114,7 +122,9 @@ loginForm.addEventListener('submit', async (e) => {
             
             showSuccess('Login successful! Redirecting to StockTrack...');
             
+            // Redirect loop önleme
             setTimeout(() => {
+                localStorage.setItem('redirect_check', 'true');
                 window.location.href = STOCKTRACK_URL;
             }, 2000);
             
@@ -131,12 +141,14 @@ loginForm.addEventListener('submit', async (e) => {
     }
 });
 
-// Logout
+// Logout - Loop önleyici
 logoutLink.addEventListener('click', (e) => {
     e.preventDefault();
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('auth_email');
+    localStorage.removeItem('redirect_check'); // Loop kontrolünü temizle
+    
     userInfo.style.display = 'none';
     logoutLink.style.display = 'none';
     usersLink.style.display = 'none';
