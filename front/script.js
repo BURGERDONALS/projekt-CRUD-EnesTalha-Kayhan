@@ -11,6 +11,14 @@ const getApiUrl = () => {
 const API_BASE_URL = getApiUrl();
 const AUTH_URL = 'https://authpage67829.netlify.app';
 
+// Check if we're in a redirect loop
+let redirectCheck = localStorage.getItem('redirect_check');
+if (redirectCheck === 'true') {
+    localStorage.removeItem('redirect_check');
+} else {
+    localStorage.setItem('redirect_check', 'true');
+}
+
 // DOM loaded event
 document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
@@ -31,18 +39,51 @@ function initializeApp() {
     checkAuthAndLoadProducts();
 }
 
-// Auth kontrolü ve kullanıcı bilgilerini yükle
+// Auth kontrolü - Loop önleyici
 async function checkAuthAndLoadProducts() {
     const token = localStorage.getItem('token');
     const userEmail = localStorage.getItem('auth_email');
     
+    console.log('Auth check:', { token: !!token, userEmail: !!userEmail });
+    
     if (!token || !userEmail) {
-        window.location.href = AUTH_URL;
+        console.log('No auth found, redirecting to login');
+        // Redirect loop'u önlemek için kontrol
+        if (!window.location.href.includes('authpage67829')) {
+            window.location.href = AUTH_URL;
+        }
         return;
     }
     
-    setupUserHeader(userEmail);
-    await loadProducts();
+    // Token'ı validate et
+    try {
+        const response = await fetch(`${API_BASE_URL}/user-info`, {
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Invalid token');
+        }
+        
+        const userInfo = await response.json();
+        console.log('User info:', userInfo);
+        
+        setupUserHeader(userInfo.email);
+        await loadProducts();
+        
+    } catch (error) {
+        console.error('Token validation failed:', error);
+        // Geçersiz token, temizle ve login'e yönlendir
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('auth_email');
+        
+        if (!window.location.href.includes('authpage67829')) {
+            window.location.href = AUTH_URL;
+        }
+    }
 }
 
 // Header'a kullanıcı bilgilerini ekle
@@ -88,11 +129,15 @@ function setupUserHeader(email) {
     document.getElementById('logoutBtn').addEventListener('click', logout);
 }
 
-// Logout fonksiyonu
+// Logout fonksiyonu - Loop önleyici
 function logout() {
+    console.log('Logging out...');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('auth_email');
+    localStorage.removeItem('redirect_check');
+    
+    // Doğrudan login sayfasına yönlendir
     window.location.href = AUTH_URL;
 }
 
@@ -110,6 +155,7 @@ async function loadProducts() {
         });
         
         if (response.status === 401) {
+            console.log('Unauthorized, logging out');
             logout();
             return;
         }
