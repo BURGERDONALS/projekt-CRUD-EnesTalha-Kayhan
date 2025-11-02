@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Register - Auth System</title>
+    <link rel="stylesheet" href="style.css">
+    <!--Google Fonts and Icons-->
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons|Material+Icons+Outlined|Material+Icons+Round|Material+Icons+Sharp|Material+Icons+Two+Tone"
+      rel="stylesheet"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800&family=Poppins:wght@100;200;300;400;500;600;700;800;900&display=swap"
+      rel="stylesheet"/>
+  </head>
+  <body>
+    <div class="center">
+      <form id="registerForm">
+        <div class="title">Register</div>
+        
+        <div class="inputs">
+          <div class="inputf">
+            <input type="email" id="email" class="input" placeholder="Email" required />
+            <span class="material-icons icon">email</span>
+          </div>
+          <div class="inputf">
+            <input type="password" id="password" class="input" placeholder="Password" required />
+            <span class="material-icons icon">lock</span>
+          </div>
+          <div class="inputf">
+            <input type="password" id="confirmPassword" class="input" placeholder="Confirm Password" required />
+            <span class="material-icons icon">lock</span>
+          </div>
+        </div>
+        
+        <div class="error-message" id="errorMessage"></div>
+        <div class="success-message" id="successMessage"></div>
+        
+        <button type="submit" class="btn" id="registerBtn">
+          Create Account
+        </button>
+        
+        <div class="text">
+          Already have an account? <a href="/" id="loginLink">Login here</a>
+        </div>
+      </form>
+    </div>
+
+    <script src="register.js"></script>
+  </body>
+</html>
