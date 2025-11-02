@@ -45,28 +45,14 @@ function checkAuthStatus() {
     if (token && user) {
         const userData = JSON.parse(user);
         showUserInfo(userData);
-        showSuccess('You are already logged in. Click "Continue to StockTrack" to proceed.');
+        showSuccess('You are already logged in. Redirecting to StockTrack...');
         
-        // Redirect butonu ekle
-        addContinueButton();
+        // Auto-redirect to StockTrack after 2 seconds
+        setTimeout(() => {
+            localStorage.setItem('redirect_check', 'true');
+            window.location.href = STOCKTRACK_URL;
+        }, 2000);
     }
-}
-
-// Continue butonu ekle
-function addContinueButton() {
-    const continueBtn = document.createElement('button');
-    continueBtn.textContent = 'Continue to StockTrack';
-    continueBtn.className = 'btn';
-    continueBtn.style.background = 'linear-gradient(135deg, #3498db, #2980b9)';
-    continueBtn.style.marginTop = '10px';
-    
-    continueBtn.addEventListener('click', () => {
-        localStorage.setItem('redirect_check', 'true');
-        window.location.href = STOCKTRACK_URL;
-    });
-    
-    const form = document.getElementById('loginForm');
-    form.appendChild(continueBtn);
 }
 
 // Show user information
@@ -128,10 +114,14 @@ loginForm.addEventListener('submit', async (e) => {
             localStorage.setItem('user', JSON.stringify(data.user));
             localStorage.setItem('auth_email', data.user.email);
             
-            showSuccess('Login successful! Click "Continue to StockTrack" below.');
+            showSuccess('Login successful! Redirecting to StockTrack...');
+            showUserInfo(data.user);
             
-            // Continue butonu ekle
-            addContinueButton();
+            // Auto-redirect to StockTrack after 2 seconds
+            setTimeout(() => {
+                localStorage.setItem('redirect_check', 'true');
+                window.location.href = STOCKTRACK_URL;
+            }, 2000);
             
             await testProtectedRoute(data.token);
         } else {
@@ -162,12 +152,6 @@ logoutLink.addEventListener('click', (e) => {
     loginBtn.disabled = false;
     showSuccess('Logged out successfully');
     loginForm.reset();
-    
-    // Continue butonunu kaldır
-    const continueBtn = document.querySelector('.btn[style*="3498db"]');
-    if (continueBtn) {
-        continueBtn.remove();
-    }
 });
 
 // Forgot password

@@ -2,7 +2,6 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
-const path = require('path');
 
 const { Pool } = require('pg');
 
@@ -41,10 +40,10 @@ app.use(cors({
 // Middleware
 app.use(express.json());
 
-// Initialize database - Hem users hem products tabloları
+// Initialize database
 async function initializeDatabase() {
   try {
-    // Users tablosu - Authentication için
+    // Users table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -55,7 +54,7 @@ async function initializeDatabase() {
       )
     `);
 
-    // Products tablosu - StockTrack için
+    // Products table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS products (
         id SERIAL PRIMARY KEY,
@@ -261,7 +260,7 @@ app.get('/api/profile', authenticateToken, async (req, res) => {
 
 // ========== STOCKTRACK ROUTES ==========
 
-// User info endpoint - Token validation için
+// User info endpoint
 app.get('/api/user-info', authenticateToken, async (req, res) => {
   res.json({
     email: req.user.email,

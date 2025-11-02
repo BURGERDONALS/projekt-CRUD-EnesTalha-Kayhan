@@ -1,115 +1,53 @@
-// API Configuration
-const API_BASE_URL = 'https://your-auth-backend.onrender.com';
-
-// DOM Elements
-const registerForm = document.getElementById('registerForm');
-const loginLink = document.getElementById('loginLink');
-const registerBtn = document.getElementById('registerBtn');
-const errorMessage = document.getElementById('errorMessage');
-const successMessage = document.getElementById('successMessage');
-const backendStatus = document.getElementById('backendStatus');
-
-// Check backend connection on load
-async function checkBackendConnection() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/health`);
-        const data = await response.json();
-        
-        if (response.ok) {
-            backendStatus.textContent = 'Connected ✅';
-            backendStatus.style.color = '#4CAF50';
-        } else {
-            backendStatus.textContent = 'Error ❌';
-            backendStatus.style.color = '#ff6b6b';
-        }
-    } catch (error) {
-        backendStatus.textContent = 'Offline ❌';
-        backendStatus.style.color = '#ff6b6b';
-        console.error('Backend connection failed:', error);
-    }
-}
-
-// Show error message
-function showError(message) {
-    errorMessage.textContent = message;
-    errorMessage.style.display = 'block';
-    successMessage.style.display = 'none';
-}
-
-// Show success message
-function showSuccess(message) {
-    successMessage.textContent = message;
-    successMessage.style.display = 'block';
-    errorMessage.style.display = 'none';
-}
-
-// Clear messages
-function clearMessages() {
-    errorMessage.style.display = 'none';
-    successMessage.style.display = 'none';
-}
-
-// Validate password
-function validatePassword(password, confirmPassword) {
-    if (password.length < 6) {
-        return 'Password must be at least 6 characters long';
-    }
-    
-    if (password !== confirmPassword) {
-        return 'Passwords do not match';
-    }
-    
-    return null;
-}
-
-// Register process
-registerForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const confirmPassword = document.getElementById('confirmPassword').value;
-
-    clearMessages();
-    
-    const passwordError = validatePassword(password, confirmPassword);
-    if (passwordError) {
-        showError(passwordError);
-        return;
-    }
-
-    registerBtn.disabled = true;
-    registerBtn.textContent = 'Creating Account...';
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/register`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email, password }),
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            showSuccess('Account created successfully! Redirecting to login...');
-            registerForm.reset();
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Register - StockTrack Auth</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts and Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons|Material+Icons+Outlined|Material+Icons+Round|Material+Icons+Sharp|Material+Icons+Two+Tone" rel="stylesheet"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800&family=Poppins:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+</head>
+<body>
+    <div class="center">
+        <form id="registerForm">
+            <div class="title">Create Account</div>
             
-            setTimeout(() => {
-                window.location.href = '/';
-            }, 2000);
-        } else {
-            showError('Error: ' + data.error);
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        showError('Server error! Please check backend connection.');
-    } finally {
-        registerBtn.disabled = false;
-        registerBtn.textContent = 'Create Account';
-    }
-});
+            <div class="inputs">
+                <div class="inputf">
+                    <input type="email" id="email" class="input" placeholder="Email" required />
+                    <span class="material-icons icon">email</span>
+                </div>
+                <div class="inputf">
+                    <input type="password" id="password" class="input" placeholder="Password" required />
+                    <span class="material-icons icon">lock</span>
+                </div>
+                <div class="inputf">
+                    <input type="password" id="confirmPassword" class="input" placeholder="Confirm Password" required />
+                    <span class="material-icons icon">lock</span>
+                </div>
+            </div>
+            
+            <div class="error-message" id="errorMessage"></div>
+            <div class="success-message" id="successMessage"></div>
+            
+            <button type="submit" class="btn" id="registerBtn">
+                Create Account
+            </button>
+            
+            <div class="text">
+                Already have an account? <a href="index.html" id="loginLink">Login</a>
+            </div>
 
-// Initialize
-document.addEventListener('DOMContentLoaded', checkBackendConnection);
+            <div class="text" style="margin-top: 20px; font-size: 12px; color: #888;">
+                Backend: <span id="backendStatus">Checking...</span>
+            </div>
+        </form>
+    </div>
+
+    <script src="register.js"></script>
+</body>
+</html>

@@ -97,7 +97,7 @@ registerForm.addEventListener('submit', async (e) => {
             registerForm.reset();
             
             setTimeout(() => {
-                window.location.href = '/';
+                window.location.href = 'index.html';
             }, 2000);
         } else {
             showError('Error: ' + data.error);
