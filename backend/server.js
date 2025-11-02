@@ -1,34 +1,62 @@
 const express = require('express');
-const cors = require('cors');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const app = express();
-const PORT = process.env.PORT || 5000;
+const cors = require('cors');
+const path = require('path');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-secret-key-for-development';
-
-app.use(cors({
-  origin: ['https://stocktrack1.netlify.app', 'https://authpage67829.netlify.app'],
-  credentials: true
-}));
-app.use(express.json());
-
-// Database configuration
 const { Pool } = require('pg');
+
+// PostgreSQL connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://stocktracker_user:VBl80z6pcfDti6WVw8891QC8LVlzj3xw@dpg-d3psloogjchc73asf1k0-a/stocktracker_3r5s',
-  ssl: { rejectUnauthorized: false }
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-const db = {
-  query: (sql, params) => pool.query(sql, params),
-  all: (sql, params) => pool.query(sql, params).then(result => result.rows),
-  run: (sql, params) => pool.query(sql, params).then(result => ({ lastID: result.rows[0]?.id, changes: result.rowCount }))
-};
+const app = express();
+const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-secret-key-for-development';
 
-// Initialize database
+// CORS Configuration
+const allowedOrigins = [
+  'https://stocktrack1.netlify.app',
+  'https://authpage67829.netlify.app',
+  'http://localhost:3000',
+  'http://localhost:5500',
+  'http://127.0.0.1:5500'
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
+// Middleware
+app.use(express.json());
+
+// Initialize database - Hem users hem products tabloları
 async function initializeDatabase() {
   try {
-    await db.query(`
+    // Users tablosu - Authentication için
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        role VARCHAR(50) DEFAULT 'USER',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Products tablosu - StockTrack için
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS products (
         id SERIAL PRIMARY KEY,
         productCode VARCHAR(50) NOT NULL,
@@ -39,13 +67,28 @@ async function initializeDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log('✅ StockTrack Database initialized successfully');
-  } catch (err) {
-    console.error('Database initialization error:', err);
+
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_products_user_email ON products(user_email)`);
+
+    // Test user
+    const testPasswordHash = await bcrypt.hash('password', 10);
+    
+    await pool.query(`
+      INSERT INTO users (email, password_hash, role) 
+      VALUES ($1, $2, $3) 
+      ON CONFLICT (email) DO NOTHING
+    `, ['test@test.com', testPasswordHash, 'USER']);
+
+    console.log('✅ Database initialized successfully');
+    console.log('👤 Test user: test@test.com / password');
+    
+  } catch (error) {
+    console.error('❌ Database initialization error:', error);
   }
 }
 
-// Token verification middleware - AYNI JWT_SECRET kullan
+// Token verification middleware
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -63,14 +106,178 @@ function authenticateToken(req, res, next) {
   });
 }
 
+// ========== AUTH ROUTES ==========
+
+// Routes
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'StockTrack & Auth API is running!',
+    endpoints: {
+      auth: {
+        register: 'POST /register',
+        login: 'POST /login',
+        profile: 'GET /api/profile',
+        users: 'GET /api/users'
+      },
+      products: {
+        list: 'GET /api/products',
+        create: 'POST /api/products',
+        update: 'PUT /api/products/:id',
+        delete: 'DELETE /api/products/:id',
+        userInfo: 'GET /api/user-info'
+      },
+      health: 'GET /health'
+    }
+  });
+});
+
+// Register endpoint
+app.post('/register', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    const existingUser = await pool.query(
+      'SELECT id FROM users WHERE email = $1',
+      [email]
+    );
+
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({ error: 'Email already exists' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const newUser = await pool.query(
+      'INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3) RETURNING id, email, role, created_at',
+      [email, passwordHash, 'USER']
+    );
+
+    res.status(201).json({ 
+      message: 'User created successfully',
+      user: newUser.rows[0]
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Login endpoint
+app.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    const userResult = await pool.query(
+      'SELECT * FROM users WHERE email = $1',
+      [email]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    const user = userResult.rows[0];
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+    
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    const token = jwt.sign(
+      { 
+        userId: user.id, 
+        email: user.email, 
+        role: user.role 
+      },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.json({
+      message: 'Login successful',
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role
+      },
+      redirectTo: 'https://stocktrack1.netlify.app'
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Protected auth routes
+app.get('/api/protected', authenticateToken, (req, res) => {
+  res.json({ 
+    message: 'This is a protected endpoint!',
+    user: req.user,
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/api/users', authenticateToken, async (req, res) => {
+  try {
+    const usersResult = await pool.query(
+      'SELECT id, email, role, created_at FROM users ORDER BY created_at DESC'
+    );
+    res.json(usersResult.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get user profile
+app.get('/api/profile', authenticateToken, async (req, res) => {
+  try {
+    const userResult = await pool.query(
+      'SELECT id, email, role, created_at FROM users WHERE id = $1',
+      [req.user.userId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json(userResult.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ========== STOCKTRACK ROUTES ==========
+
+// User info endpoint - Token validation için
+app.get('/api/user-info', authenticateToken, async (req, res) => {
+  res.json({
+    email: req.user.email,
+    role: req.user.role,
+    userId: req.user.userId
+  });
+});
+
 // Get all products for authenticated user
 app.get('/api/products', authenticateToken, async (req, res) => {
   try {
-    const products = await db.all(
+    const products = await pool.query(
       'SELECT * FROM products WHERE user_email = $1 ORDER BY id DESC',
       [req.user.email]
     );
-    res.json(products);
+    res.json(products.rows);
   } catch (err) {
     console.error('Error fetching products:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -86,7 +293,7 @@ app.post('/api/products', authenticateToken, async (req, res) => {
   }
   
   try {
-    const result = await db.query(
+    const result = await pool.query(
       'INSERT INTO products (productCode, product, qty, perPrice, user_email) VALUES ($1, $2, $3, $4, $5) RETURNING *',
       [productCode, product, parseInt(qty), parseFloat(perPrice), req.user.email]
     );
@@ -104,7 +311,7 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
   const { productCode, product, qty, perPrice } = req.body;
   
   try {
-    const result = await db.query(
+    const result = await pool.query(
       'UPDATE products SET productCode = $1, product = $2, qty = $3, perPrice = $4 WHERE id = $5 AND user_email = $6 RETURNING *',
       [productCode, product, parseInt(qty), parseFloat(perPrice), parseInt(id), req.user.email]
     );
@@ -125,7 +332,7 @@ app.delete('/api/products/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   
   try {
-    const result = await db.query(
+    const result = await pool.query(
       'DELETE FROM products WHERE id = $1 AND user_email = $2 RETURNING *',
       [parseInt(id), req.user.email]
     );
@@ -141,23 +348,15 @@ app.delete('/api/products/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// User info endpoint - Token validation için
-app.get('/api/user-info', authenticateToken, async (req, res) => {
-  res.json({
-    email: req.user.email,
-    role: req.user.role,
-    userId: req.user.userId
-  });
-});
-
 // Health check
 app.get('/health', async (req, res) => {
   try {
-    await db.query('SELECT 1');
+    await pool.query('SELECT 1');
     res.json({ 
       status: 'OK', 
       database: 'Connected',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development'
     });
   } catch (error) {
     res.status(500).json({ 
@@ -168,20 +367,15 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// Public endpoint - Herkese açık
-app.get('/', (req, res) => {
-  res.json({ 
-    message: 'StockTrack API is running!',
-    endpoints: {
-      products: 'GET /api/products (protected)',
-      userInfo: 'GET /api/user-info (protected)',
-      health: 'GET /health'
-    }
+// Start server
+async function startServer() {
+  await initializeDatabase();
+  
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Combined Server running on port ${PORT}`);
+    console.log(`📍 Health check: http://0.0.0.0:${PORT}/health`);
+    console.log(`🔑 Test user: test@test.com / password`);
   });
-});
+}
 
-initializeDatabase();
-
-app.listen(PORT, () => {
-  console.log(`🚀 StockTrack Server running on port ${PORT}`);
-});
+startServer().catch(console.error);

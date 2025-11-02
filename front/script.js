@@ -1,18 +1,12 @@
 var selectedRow = null;
 
-// Environment detection
-const getApiUrl = () => {
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        return 'http://localhost:5000/api';
-    }
-    return 'https://projekt-crud-enestalha-kayhan.onrender.com/api';
-};
-
-const API_BASE_URL = getApiUrl();
+// Backend URL - TEK backend kullan
+const API_BASE_URL = 'https://projekt-crud-enestalha-kayhan.onrender.com';
 const AUTH_URL = 'https://authpage67829.netlify.app';
 
 // DOM loaded event
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('StockTrack loaded - Checking authentication...');
     initializeApp();
 });
 
@@ -31,52 +25,39 @@ function initializeApp() {
     checkAuthAndLoadProducts();
 }
 
-// Auth kontrolü - Basitleştirilmiş
+// Basit auth kontrolü
 async function checkAuthAndLoadProducts() {
     const token = localStorage.getItem('token');
     const userEmail = localStorage.getItem('auth_email');
     
-    console.log('Auth check - Token:', !!token, 'Email:', userEmail);
+    console.log('Auth check:', { 
+        hasToken: !!token, 
+        hasEmail: !!userEmail,
+        currentUrl: window.location.href 
+    });
     
+    // Eğer token yoksa direkt login'e gönder
     if (!token || !userEmail) {
-        console.log('No auth found, redirecting to login');
-        redirectToLogin();
+        console.log('No authentication found, redirecting to login');
+        window.location.href = AUTH_URL;
         return;
     }
     
-    // Token'ı validate et
+    // Token varsa, doğrudan ürünleri yükle
     try {
-        const response = await fetch(`${API_BASE_URL}/user-info`, {
-            headers: {
-                'Authorization': 'Bearer ' + token
-            }
-        });
-        
-        if (response.ok) {
-            const userInfo = await response.json();
-            console.log('Token valid, user:', userInfo.email);
-            setupUserHeader(userInfo.email);
-            await loadProducts();
-        } else {
-            throw new Error('Token validation failed');
-        }
-        
+        console.log('Token found, loading products...');
+        setupUserHeader(userEmail);
+        await loadProducts();
     } catch (error) {
-        console.error('Token validation failed:', error);
-        redirectToLogin();
+        console.error('Error loading products:', error);
+        window.location.href = AUTH_URL;
     }
-}
-
-// Login'e yönlendirme
-function redirectToLogin() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('auth_email');
-    window.location.href = AUTH_URL;
 }
 
 // Header'a kullanıcı bilgilerini ekle
 function setupUserHeader(email) {
+    console.log('Setting up user header for:', email);
+    
     const header = document.createElement('div');
     header.style.cssText = `
         background: #2c3e50;
@@ -92,7 +73,7 @@ function setupUserHeader(email) {
     header.innerHTML = `
         <div>
             <strong style="color: #4CAF50;">Welcome, ${email}</strong>
-            <div style="font-size: 12px; color: #bdc3c7;">StockTrack Dashboard</div>
+            <div style="font-size: 12px; color: #bdc3c7;">StockTrack Dashboard - You are successfully logged in</div>
         </div>
         <button id="logoutBtn" style="
             background: #e74c3c;
@@ -115,34 +96,39 @@ function setupUserHeader(email) {
         container.insertBefore(header, firstChild);
     }
     
-    document.getElementById('logoutBtn').addEventListener('click', logout);
+    // Logout event listener
+    document.getElementById('logoutBtn').addEventListener('click', function() {
+        console.log('Logout clicked');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('auth_email');
+        window.location.href = AUTH_URL;
+    });
 }
 
-// Logout fonksiyonu
-function logout() {
-    console.log('Logging out...');
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('auth_email');
-    window.location.href = AUTH_URL;
-}
-
-// Load products with authentication
+// Load products
 async function loadProducts() {
     try {
-        showMessage('Loading products...', 'loading');
+        showMessage('Loading your products...', 'loading');
         
         const token = localStorage.getItem('token');
         
-        const response = await fetch(`${API_BASE_URL}/products`, {
+        console.log('Fetching products from:', `${API_BASE_URL}/api/products`);
+        
+        const response = await fetch(`${API_BASE_URL}/api/products`, {
             headers: {
                 'Authorization': 'Bearer ' + token
             }
         });
         
+        console.log('Products response status:', response.status);
+        
         if (response.status === 401) {
-            console.log('Unauthorized, redirecting to login');
-            redirectToLogin();
+            console.log('Token invalid, redirecting to login');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('auth_email');
+            window.location.href = AUTH_URL;
             return;
         }
         
@@ -151,7 +137,7 @@ async function loadProducts() {
         }
         
         const products = await response.json();
-        console.log('Products loaded:', products.length);
+        console.log('Products loaded successfully:', products.length, 'products');
         
         const tableBody = document.querySelector("#storeList tbody");
         if (!tableBody) {
@@ -191,6 +177,7 @@ async function loadProducts() {
         });
         
         hideMessage();
+        console.log('Products displayed successfully');
         
     } catch (error) {
         console.error('Error loading products:', error);
@@ -216,11 +203,42 @@ async function onFormSubmit(e) {
             return;
         }
         
+        const token = localStorage.getItem('token');
+        
         if (selectedRow === null) {
-            await insertNewRecord(formData);
+            // Add new product
+            const response = await fetch(`${API_BASE_URL}/api/products`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Failed to add product');
+            }
+            
             showMessage('Product added successfully!', 'success');
         } else {
-            await updateRecord(formData);
+            // Update product
+            const productId = selectedRow.getAttribute('data-id');
+            const response = await fetch(`${API_BASE_URL}/api/products/${productId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Failed to update product');
+            }
+            
             showMessage('Product updated successfully!', 'success');
         }
         
@@ -257,26 +275,6 @@ function validateFormData(data) {
     return true;
 }
 
-async function insertNewRecord(data) {
-    const token = localStorage.getItem('token');
-    
-    const response = await fetch(`${API_BASE_URL}/products`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
-        },
-        body: JSON.stringify(data)
-    });
-    
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to add product');
-    }
-    
-    return await response.json();
-}
-
 function onEdit(td) {
     selectedRow = td.closest('tr');
     const cells = selectedRow.cells;
@@ -293,27 +291,6 @@ function onEdit(td) {
     });
 }
 
-async function updateRecord(formData) {
-    const productId = selectedRow.getAttribute('data-id');
-    const token = localStorage.getItem('token');
-    
-    const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
-        },
-        body: JSON.stringify(formData)
-    });
-    
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to update product');
-    }
-    
-    return await response.json();
-}
-
 async function onDelete(td) {
     if (!confirm('Are you sure you want to delete this product?')) {
         return;
@@ -324,7 +301,7 @@ async function onDelete(td) {
     const token = localStorage.getItem('token');
     
     try {
-        const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/products/${productId}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': 'Bearer ' + token
@@ -389,3 +366,6 @@ function hideMessage() {
 
 window.onEdit = onEdit;
 window.onDelete = onDelete;
+
+// Sayfa yüklendiğinde console'a mesaj yaz
+console.log('StockTrack application initialized');
