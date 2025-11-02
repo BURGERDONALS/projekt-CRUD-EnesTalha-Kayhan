@@ -5,19 +5,11 @@ const getApiUrl = () => {
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         return 'http://localhost:5000/api';
     }
-    return 'https://stock-tracker-linq.onrender.com/api';
+    return 'https://projekt-crud-enestalha-kayhan.onrender.com/api';
 };
 
 const API_BASE_URL = getApiUrl();
 const AUTH_URL = 'https://authpage67829.netlify.app';
-
-// Check if we're in a redirect loop
-let redirectCheck = localStorage.getItem('redirect_check');
-if (redirectCheck === 'true') {
-    localStorage.removeItem('redirect_check');
-} else {
-    localStorage.setItem('redirect_check', 'true');
-}
 
 // DOM loaded event
 document.addEventListener('DOMContentLoaded', function() {
@@ -39,19 +31,16 @@ function initializeApp() {
     checkAuthAndLoadProducts();
 }
 
-// Auth kontrolü - Loop önleyici
+// Auth kontrolü - Basitleştirilmiş
 async function checkAuthAndLoadProducts() {
     const token = localStorage.getItem('token');
     const userEmail = localStorage.getItem('auth_email');
     
-    console.log('Auth check:', { token: !!token, userEmail: !!userEmail });
+    console.log('Auth check - Token:', !!token, 'Email:', userEmail);
     
     if (!token || !userEmail) {
         console.log('No auth found, redirecting to login');
-        // Redirect loop'u önlemek için kontrol
-        if (!window.location.href.includes('authpage67829')) {
-            window.location.href = AUTH_URL;
-        }
+        redirectToLogin();
         return;
     }
     
@@ -63,27 +52,27 @@ async function checkAuthAndLoadProducts() {
             }
         });
         
-        if (!response.ok) {
-            throw new Error('Invalid token');
+        if (response.ok) {
+            const userInfo = await response.json();
+            console.log('Token valid, user:', userInfo.email);
+            setupUserHeader(userInfo.email);
+            await loadProducts();
+        } else {
+            throw new Error('Token validation failed');
         }
-        
-        const userInfo = await response.json();
-        console.log('User info:', userInfo);
-        
-        setupUserHeader(userInfo.email);
-        await loadProducts();
         
     } catch (error) {
         console.error('Token validation failed:', error);
-        // Geçersiz token, temizle ve login'e yönlendir
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('auth_email');
-        
-        if (!window.location.href.includes('authpage67829')) {
-            window.location.href = AUTH_URL;
-        }
+        redirectToLogin();
     }
+}
+
+// Login'e yönlendirme
+function redirectToLogin() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('auth_email');
+    window.location.href = AUTH_URL;
 }
 
 // Header'a kullanıcı bilgilerini ekle
@@ -103,7 +92,7 @@ function setupUserHeader(email) {
     header.innerHTML = `
         <div>
             <strong style="color: #4CAF50;">Welcome, ${email}</strong>
-            <div style="font-size: 12px; color: #bdc3c7;">You are logged in successfully</div>
+            <div style="font-size: 12px; color: #bdc3c7;">StockTrack Dashboard</div>
         </div>
         <button id="logoutBtn" style="
             background: #e74c3c;
@@ -129,15 +118,12 @@ function setupUserHeader(email) {
     document.getElementById('logoutBtn').addEventListener('click', logout);
 }
 
-// Logout fonksiyonu - Loop önleyici
+// Logout fonksiyonu
 function logout() {
     console.log('Logging out...');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('auth_email');
-    localStorage.removeItem('redirect_check');
-    
-    // Doğrudan login sayfasına yönlendir
     window.location.href = AUTH_URL;
 }
 
@@ -155,8 +141,8 @@ async function loadProducts() {
         });
         
         if (response.status === 401) {
-            console.log('Unauthorized, logging out');
-            logout();
+            console.log('Unauthorized, redirecting to login');
+            redirectToLogin();
             return;
         }
         
@@ -165,6 +151,7 @@ async function loadProducts() {
         }
         
         const products = await response.json();
+        console.log('Products loaded:', products.length);
         
         const tableBody = document.querySelector("#storeList tbody");
         if (!tableBody) {
@@ -211,6 +198,7 @@ async function loadProducts() {
     }
 }
 
+// Diğer fonksiyonlar aynı kalacak...
 async function onFormSubmit(e) {
     e.preventDefault();
     

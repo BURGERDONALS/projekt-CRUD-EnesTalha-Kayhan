@@ -45,7 +45,7 @@ async function initializeDatabase() {
   }
 }
 
-// Token verification middleware
+// Token verification middleware - AYNI JWT_SECRET kullan
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -141,11 +141,12 @@ app.delete('/api/products/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// User info endpoint
+// User info endpoint - Token validation için
 app.get('/api/user-info', authenticateToken, async (req, res) => {
   res.json({
     email: req.user.email,
-    role: req.user.role
+    role: req.user.role,
+    userId: req.user.userId
   });
 });
 
@@ -165,6 +166,18 @@ app.get('/health', async (req, res) => {
       error: error.message 
     });
   }
+});
+
+// Public endpoint - Herkese açık
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'StockTrack API is running!',
+    endpoints: {
+      products: 'GET /api/products (protected)',
+      userInfo: 'GET /api/user-info (protected)',
+      health: 'GET /health'
+    }
+  });
 });
 
 initializeDatabase();
