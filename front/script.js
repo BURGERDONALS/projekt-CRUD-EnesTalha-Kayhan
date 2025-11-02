@@ -5,7 +5,7 @@ const getApiUrl = () => {
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         return 'http://localhost:5000/api';
     }
-    return 'https://your-stocktrack-backend.onrender.com/api';
+    return 'https://stock-tracker-linq.onrender.com/api';
 };
 
 const API_BASE_URL = getApiUrl();
