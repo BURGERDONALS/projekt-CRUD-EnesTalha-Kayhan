@@ -25,35 +25,31 @@ function initializeApp() {
     checkAuthAndLoadProducts();
 }
 
-// Basit authentication kontrolü - LOOP SORUNU ÇÖZÜLDÜ
+// Basit authentication kontrolü
 async function checkAuthAndLoadProducts() {
     const token = localStorage.getItem('token');
     const userEmail = localStorage.getItem('auth_email');
     
-    console.log('Auth check:', { 
-        hasToken: !!token, 
-        hasEmail: !!userEmail
+    console.log('StockTrack Auth check:', { 
+        token: token ? 'exists' : 'missing',
+        authEmail: userEmail || 'missing'
     });
     
-    // Eğer token yoksa direkt login'e gönder
+    // Eğer token veya email yoksa direkt login'e gönder
     if (!token || !userEmail) {
-        console.log('No authentication found, redirecting to login');
+        console.log('No authentication found in localStorage, redirecting to login');
         window.location.href = AUTH_URL;
         return;
     }
     
-    // Token varsa, doğrudan ürünleri yükle (sadece kontrol et, doğrulama yapma)
+    // Token ve email varsa, doğrudan ürünleri yükle
     try {
-        console.log('Token found, loading products directly...');
+        console.log('Authentication found, setting up interface...');
         setupUserHeader(userEmail);
         await loadProducts();
     } catch (error) {
-        console.error('Error loading products:', error);
-        // Hata durumunda bile token'ı sil ve login'e gönder
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('auth_email');
-        window.location.href = AUTH_URL;
+        console.error('Error in StockTrack:', error);
+        showMessage('Error loading application', 'error');
     }
 }
 
@@ -137,15 +133,13 @@ function setupUserHeader(email) {
         logoutBtn.style.background = '#e74c3c';
     });
     
-    // Logout event listener - KESİN ÇALIŞACAK ŞEKİLDE
+    // Logout event listener
     logoutBtn.addEventListener('click', function() {
         console.log('Logout clicked');
         if (confirm('Are you sure you want to logout?')) {
             // Tüm storage'ı temizle
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            localStorage.removeItem('auth_email');
-            // Redirect et
+            localStorage.clear();
+            console.log('LocalStorage cleared, redirecting to login');
             window.location.href = AUTH_URL;
         }
     });
@@ -179,12 +173,16 @@ function setupUserHeader(email) {
     });
 }
 
-// Load products - BASİTLEŞTİRİLMİŞ VERSİYON
+// Load products
 async function loadProducts() {
     try {
         showMessage('Loading your products...', 'loading');
         
         const token = localStorage.getItem('token');
+        
+        if (!token) {
+            throw new Error('No token found');
+        }
         
         console.log('Fetching products from:', `${API_BASE_URL}/api/products`);
         
@@ -199,9 +197,7 @@ async function loadProducts() {
         // Eğer 401 hatası alırsak, token geçersiz demektir
         if (response.status === 401) {
             console.log('Token invalid, clearing storage and redirecting to login');
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            localStorage.removeItem('auth_email');
+            localStorage.clear();
             window.location.href = AUTH_URL;
             return;
         }
