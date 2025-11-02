@@ -6,9 +6,6 @@ const STOCKTRACK_URL = 'https://stocktrack1.netlify.app';
 const loginForm = document.getElementById('loginForm');
 const registerLink = document.getElementById('registerLink');
 const forgotPassword = document.getElementById('forgotPassword');
-const logoutLink = document.getElementById('logoutLink');
-const usersLink = document.getElementById('usersLink');
-const profileLink = document.getElementById('profileLink');
 const loginBtn = document.getElementById('loginBtn');
 const errorMessage = document.getElementById('errorMessage');
 const successMessage = document.getElementById('successMessage');
@@ -47,11 +44,10 @@ function checkAuthStatus() {
         showUserInfo(userData);
         showSuccess('You are already logged in. Redirecting to StockTrack...');
         
-        // Auto-redirect to StockTrack after 2 seconds
+        // Auto-redirect to StockTrack after 1 second
         setTimeout(() => {
-            localStorage.setItem('redirect_check', 'true');
             window.location.href = STOCKTRACK_URL;
-        }, 2000);
+        }, 1000);
     }
 }
 
@@ -60,9 +56,6 @@ function showUserInfo(user) {
     userEmail.textContent = user.email;
     userRole.textContent = user.role;
     userInfo.style.display = 'block';
-    logoutLink.style.display = 'inline';
-    usersLink.style.display = 'inline';
-    profileLink.style.display = 'inline';
     loginBtn.textContent = 'Login Successful';
     loginBtn.disabled = true;
 }
@@ -117,13 +110,11 @@ loginForm.addEventListener('submit', async (e) => {
             showSuccess('Login successful! Redirecting to StockTrack...');
             showUserInfo(data.user);
             
-            // Auto-redirect to StockTrack after 2 seconds
+            // Auto-redirect to StockTrack after 1 second
             setTimeout(() => {
-                localStorage.setItem('redirect_check', 'true');
                 window.location.href = STOCKTRACK_URL;
-            }, 2000);
+            }, 1000);
             
-            await testProtectedRoute(data.token);
         } else {
             showError('Error: ' + data.error);
         }
@@ -136,113 +127,11 @@ loginForm.addEventListener('submit', async (e) => {
     }
 });
 
-// Logout
-logoutLink.addEventListener('click', (e) => {
-    e.preventDefault();
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('auth_email');
-    localStorage.removeItem('redirect_check');
-    
-    userInfo.style.display = 'none';
-    logoutLink.style.display = 'none';
-    usersLink.style.display = 'none';
-    profileLink.style.display = 'none';
-    loginBtn.textContent = 'Login';
-    loginBtn.disabled = false;
-    showSuccess('Logged out successfully');
-    loginForm.reset();
-});
-
 // Forgot password
 forgotPassword.addEventListener('click', (e) => {
     e.preventDefault();
     showError('Password reset feature coming soon!');
 });
-
-// View users (protected route)
-usersLink.addEventListener('click', async (e) => {
-    e.preventDefault();
-    
-    const token = localStorage.getItem('token');
-    if (!token) {
-        showError('Please login first');
-        return;
-    }
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/users`, {
-            headers: {
-                'Authorization': 'Bearer ' + token
-            }
-        });
-
-        const data = await response.json();
-        
-        if (response.ok) {
-            console.log('Users:', data);
-            alert(`Total users: ${data.length}\n\nUsers:\n${data.map(user => 
-                `${user.email} (${user.role}) - ${new Date(user.created_at).toLocaleDateString()}`
-            ).join('\n')}`);
-        } else {
-            showError('Error fetching users: ' + data.error);
-        }
-    } catch (error) {
-        console.error('Users fetch error:', error);
-        showError('Error fetching users');
-    }
-});
-
-// View profile
-profileLink.addEventListener('click', async (e) => {
-    e.preventDefault();
-    
-    const token = localStorage.getItem('token');
-    if (!token) {
-        showError('Please login first');
-        return;
-    }
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/profile`, {
-            headers: {
-                'Authorization': 'Bearer ' + token
-            }
-        });
-
-        const data = await response.json();
-        
-        if (response.ok) {
-            alert(`Profile Information:\n\nEmail: ${data.email}\nRole: ${data.role}\nMember since: ${new Date(data.created_at).toLocaleDateString()}`);
-        } else {
-            showError('Error fetching profile: ' + data.error);
-        }
-    } catch (error) {
-        console.error('Profile fetch error:', error);
-        showError('Error fetching profile');
-    }
-});
-
-// Protected route test
-async function testProtectedRoute(token) {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/protected`, {
-            headers: {
-                'Authorization': 'Bearer ' + token
-            }
-        });
-
-        const data = await response.json();
-        
-        if (response.ok) {
-            console.log('Protected endpoint response:', data);
-        } else {
-            console.log('Protected endpoint error:', data);
-        }
-    } catch (error) {
-        console.error('Protected route error:', error);
-    }
-}
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
