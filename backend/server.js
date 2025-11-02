@@ -40,10 +40,10 @@ app.use(cors({
 // Middleware
 app.use(express.json());
 
-// Initialize database - Hem users hem products tabloları
+// Initialize database
 async function initializeDatabase() {
   try {
-    // Users tablosu - Authentication için
+    // Users table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -54,7 +54,7 @@ async function initializeDatabase() {
       )
     `);
 
-    // Products tablosu - StockTrack için
+    // Products table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS products (
         id SERIAL PRIMARY KEY,
@@ -236,6 +236,7 @@ app.get('/api/users', authenticateToken, async (req, res) => {
     );
     res.json(usersResult.rows);
   } catch (error) {
+    console.error('Users fetch error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -254,13 +255,14 @@ app.get('/api/profile', authenticateToken, async (req, res) => {
     
     res.json(userResult.rows[0]);
   } catch (error) {
+    console.error('Profile fetch error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
 // ========== STOCKTRACK ROUTES ==========
 
-// User info endpoint - Token validation için
+// User info endpoint
 app.get('/api/user-info', authenticateToken, async (req, res) => {
   res.json({
     email: req.user.email,
@@ -269,47 +271,56 @@ app.get('/api/user-info', authenticateToken, async (req, res) => {
   });
 });
 
-// Get all products for authenticated user
+// Get all products for authenticated user - DÜZELTİLDİ
 app.get('/api/products', authenticateToken, async (req, res) => {
   try {
+    console.log('Fetching products for user:', req.user.email);
+    
     const products = await pool.query(
       'SELECT * FROM products WHERE user_email = $1 ORDER BY id DESC',
       [req.user.email]
     );
+    
+    console.log('Products found:', products.rows.length);
     res.json(products.rows);
   } catch (err) {
     console.error('Error fetching products:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error: ' + err.message });
   }
 });
 
-// Add new product
+// Add new product - DÜZELTİLDİ
 app.post('/api/products', authenticateToken, async (req, res) => {
-  const { productCode, product, qty, perPrice } = req.body;
-  
-  if (!productCode || !product || !qty || !perPrice) {
-    return res.status(400).json({ error: 'All fields are required' });
-  }
-  
   try {
+    const { productCode, product, qty, perPrice } = req.body;
+    
+    console.log('Adding product for user:', req.user.email, 'Data:', { productCode, product, qty, perPrice });
+    
+    if (!productCode || !product || !qty || !perPrice) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+    
     const result = await pool.query(
       'INSERT INTO products (productCode, product, qty, perPrice, user_email) VALUES ($1, $2, $3, $4, $5) RETURNING *',
       [productCode, product, parseInt(qty), parseFloat(perPrice), req.user.email]
     );
     
+    console.log('Product added successfully:', result.rows[0]);
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error adding product:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error: ' + err.message });
   }
 });
 
-// Update product
+// Update product - DÜZELTİLDİ
 app.put('/api/products/:id', authenticateToken, async (req, res) => {
-  const { id } = req.params;
-  const { productCode, product, qty, perPrice } = req.body;
-  
   try {
+    const { id } = req.params;
+    const { productCode, product, qty, perPrice } = req.body;
+    
+    console.log('Updating product:', id, 'for user:', req.user.email);
+    
     const result = await pool.query(
       'UPDATE products SET productCode = $1, product = $2, qty = $3, perPrice = $4 WHERE id = $5 AND user_email = $6 RETURNING *',
       [productCode, product, parseInt(qty), parseFloat(perPrice), parseInt(id), req.user.email]
@@ -319,18 +330,21 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Product not found' });
     }
     
+    console.log('Product updated successfully:', result.rows[0]);
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Error updating product:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error: ' + err.message });
   }
 });
 
-// Delete product
+// Delete product - DÜZELTİLDİ
 app.delete('/api/products/:id', authenticateToken, async (req, res) => {
-  const { id } = req.params;
-  
   try {
+    const { id } = req.params;
+    
+    console.log('Deleting product:', id, 'for user:', req.user.email);
+    
     const result = await pool.query(
       'DELETE FROM products WHERE id = $1 AND user_email = $2 RETURNING *',
       [parseInt(id), req.user.email]
@@ -340,14 +354,15 @@ app.delete('/api/products/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Product not found' });
     }
     
+    console.log('Product deleted successfully');
     res.json({ message: 'Product deleted successfully' });
   } catch (err) {
     console.error('Error deleting product:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error: ' + err.message });
   }
 });
 
-// Health check
+// Health check with better error handling
 app.get('/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
@@ -358,6 +373,7 @@ app.get('/health', async (req, res) => {
       environment: process.env.NODE_ENV || 'development'
     });
   } catch (error) {
+    console.error('Health check error:', error);
     res.status(500).json({ 
       status: 'Error', 
       database: 'Disconnected',
@@ -366,15 +382,31 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// Error handling middleware
+app.use((error, req, res, next) => {
+  console.error('Unhandled error:', error);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: 'Endpoint not found' });
+});
+
 // Start server
 async function startServer() {
-  await initializeDatabase();
-  
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Combined Server running on port ${PORT}`);
-    console.log(`📍 Health check: http://0.0.0.0:${PORT}/health`);
-    console.log(`🔑 Test user: test@test.com / password`);
-  });
+  try {
+    await initializeDatabase();
+    
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 Combined Server running on port ${PORT}`);
+      console.log(`📍 Health check: http://0.0.0.0:${PORT}/health`);
+      console.log(`🔑 Test user: test@test.com / password`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
 }
 
 startServer().catch(console.error);

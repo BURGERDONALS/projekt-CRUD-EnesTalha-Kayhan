@@ -239,7 +239,10 @@ async function loadProducts() {
         }
         
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            // Detaylı hata mesajı al
+            const errorText = await response.text();
+            console.error('Server error response:', errorText);
+            throw new Error(`Server error: ${response.status} - ${errorText}`);
         }
         
         const products = await response.json();
@@ -287,7 +290,7 @@ async function loadProducts() {
         
     } catch (error) {
         console.error('Error loading products:', error);
-        showMessage('Failed to load products. Please check your connection.', 'error');
+        showMessage('Failed to load products: ' + error.message, 'error');
     }
 }
 
