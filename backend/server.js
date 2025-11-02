@@ -6,15 +6,15 @@ const path = require('path');
 
 const { Pool } = require('pg');
 
-// PostgreSQL connection for Render
+// PostgreSQL connection
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL || 'postgresql://username:password@localhost:5432/auth_system',
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-for-development';
+const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-secret-key-for-development';
 
 // Middleware
 app.use(express.json());
