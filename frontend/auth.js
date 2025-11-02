@@ -55,7 +55,7 @@ function checkAuthStatus() {
             // Hızlı redirect - 1.5 saniye
             setTimeout(() => {
                 console.log('Auto-redirecting to StockTrack...');
-                window.location.href = STOCKTRACK_URL;
+                redirectToStockTrack(token, authEmail);
             }, 1500);
         } catch (error) {
             console.error('Error parsing user data:', error);
@@ -64,6 +64,14 @@ function checkAuthStatus() {
     } else {
         console.log('Not logged in, showing login form');
     }
+}
+
+// Redirect to StockTrack with token in URL
+function redirectToStockTrack(token, email) {
+    // Token'ı URL parameter olarak gönder
+    const redirectUrl = `${STOCKTRACK_URL}?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+    console.log('Redirecting to:', redirectUrl);
+    window.location.href = redirectUrl;
 }
 
 // Show user information
@@ -134,7 +142,7 @@ loginForm.addEventListener('submit', async (e) => {
             // Hızlı redirect - 1.5 saniye
             setTimeout(() => {
                 console.log('Redirecting to StockTrack...');
-                window.location.href = STOCKTRACK_URL;
+                redirectToStockTrack(data.token, data.user.email);
             }, 1500);
             
         } else {
