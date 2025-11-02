@@ -44,7 +44,7 @@ function checkAuthStatus() {
         showUserInfo(userData);
         showSuccess('You are already logged in. Redirecting to StockTrack...');
         
-        // Auto-redirect to StockTrack after 1 second
+        // Hızlı redirect - 1 saniye
         setTimeout(() => {
             window.location.href = STOCKTRACK_URL;
         }, 1000);
@@ -110,7 +110,7 @@ loginForm.addEventListener('submit', async (e) => {
             showSuccess('Login successful! Redirecting to StockTrack...');
             showUserInfo(data.user);
             
-            // Auto-redirect to StockTrack after 1 second
+            // Hızlı redirect - 1 saniye
             setTimeout(() => {
                 window.location.href = STOCKTRACK_URL;
             }, 1000);
