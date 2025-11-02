@@ -25,7 +25,7 @@ function initializeApp() {
     checkAuthAndLoadProducts();
 }
 
-// Authentication check - FIXED LOOP ISSUE
+// Basit authentication kontrolü - LOOP SORUNU ÇÖZÜLDÜ
 async function checkAuthAndLoadProducts() {
     const token = localStorage.getItem('token');
     const userEmail = localStorage.getItem('auth_email');
@@ -35,40 +35,21 @@ async function checkAuthAndLoadProducts() {
         hasEmail: !!userEmail
     });
     
-    // If no token, redirect to login
+    // Eğer token yoksa direkt login'e gönder
     if (!token || !userEmail) {
         console.log('No authentication found, redirecting to login');
         window.location.href = AUTH_URL;
         return;
     }
     
-    // Verify token is still valid
+    // Token varsa, doğrudan ürünleri yükle (sadece kontrol et, doğrulama yapma)
     try {
-        const response = await fetch(`${API_BASE_URL}/api/user-info`, {
-            headers: {
-                'Authorization': 'Bearer ' + token
-            }
-        });
-        
-        if (response.status === 401) {
-            console.log('Token invalid, redirecting to login');
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            localStorage.removeItem('auth_email');
-            window.location.href = AUTH_URL;
-            return;
-        }
-        
-        if (!response.ok) {
-            throw new Error('Token validation failed');
-        }
-        
-        console.log('Token valid, loading products...');
+        console.log('Token found, loading products directly...');
         setupUserHeader(userEmail);
         await loadProducts();
-        
     } catch (error) {
-        console.error('Token validation error:', error);
+        console.error('Error loading products:', error);
+        // Hata durumunda bile token'ı sil ve login'e gönder
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         localStorage.removeItem('auth_email');
@@ -156,13 +137,15 @@ function setupUserHeader(email) {
         logoutBtn.style.background = '#e74c3c';
     });
     
-    // Logout event listener
+    // Logout event listener - KESİN ÇALIŞACAK ŞEKİLDE
     logoutBtn.addEventListener('click', function() {
         console.log('Logout clicked');
         if (confirm('Are you sure you want to logout?')) {
+            // Tüm storage'ı temizle
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             localStorage.removeItem('auth_email');
+            // Redirect et
             window.location.href = AUTH_URL;
         }
     });
@@ -170,7 +153,11 @@ function setupUserHeader(email) {
     // Profile event listener
     profileBtn.addEventListener('click', async function() {
         const token = localStorage.getItem('token');
-        if (!token) return;
+        if (!token) {
+            alert('Please login again');
+            window.location.href = AUTH_URL;
+            return;
+        }
         
         try {
             const response = await fetch(`${API_BASE_URL}/api/profile`, {
@@ -192,7 +179,7 @@ function setupUserHeader(email) {
     });
 }
 
-// Load products
+// Load products - BASİTLEŞTİRİLMİŞ VERSİYON
 async function loadProducts() {
     try {
         showMessage('Loading your products...', 'loading');
@@ -209,8 +196,9 @@ async function loadProducts() {
         
         console.log('Products response status:', response.status);
         
+        // Eğer 401 hatası alırsak, token geçersiz demektir
         if (response.status === 401) {
-            console.log('Token invalid, redirecting to login');
+            console.log('Token invalid, clearing storage and redirecting to login');
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             localStorage.removeItem('auth_email');
@@ -271,7 +259,7 @@ async function loadProducts() {
     }
 }
 
-// Rest of the functions remain the same...
+// Diğer fonksiyonlar aynı kalacak...
 async function onFormSubmit(e) {
     e.preventDefault();
     
@@ -453,5 +441,5 @@ function hideMessage() {
 window.onEdit = onEdit;
 window.onDelete = onDelete;
 
-// Page loaded message
+// Sayfa yüklendiğinde console'a mesaj yaz
 console.log('StockTrack application initialized');
