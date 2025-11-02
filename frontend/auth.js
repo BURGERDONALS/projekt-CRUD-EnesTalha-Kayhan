@@ -37,7 +37,7 @@ async function checkBackendConnection() {
     }
 }
 
-// Check if user is already logged in - Loop önleyici
+// Check if user is already logged in
 function checkAuthStatus() {
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
@@ -45,20 +45,28 @@ function checkAuthStatus() {
     if (token && user) {
         const userData = JSON.parse(user);
         showUserInfo(userData);
-        showSuccess('You are already logged in. Redirecting to StockTrack...');
+        showSuccess('You are already logged in. Click "Continue to StockTrack" to proceed.');
         
-        // Redirect loop kontrolü
-        const redirectCheck = localStorage.getItem('redirect_check');
-        if (redirectCheck !== 'true') {
-            setTimeout(() => {
-                localStorage.setItem('redirect_check', 'true');
-                window.location.href = STOCKTRACK_URL;
-            }, 2000);
-        } else {
-            console.log('Redirect loop detected, staying on login page');
-            localStorage.removeItem('redirect_check');
-        }
+        // Redirect butonu ekle
+        addContinueButton();
     }
+}
+
+// Continue butonu ekle
+function addContinueButton() {
+    const continueBtn = document.createElement('button');
+    continueBtn.textContent = 'Continue to StockTrack';
+    continueBtn.className = 'btn';
+    continueBtn.style.background = 'linear-gradient(135deg, #3498db, #2980b9)';
+    continueBtn.style.marginTop = '10px';
+    
+    continueBtn.addEventListener('click', () => {
+        localStorage.setItem('redirect_check', 'true');
+        window.location.href = STOCKTRACK_URL;
+    });
+    
+    const form = document.getElementById('loginForm');
+    form.appendChild(continueBtn);
 }
 
 // Show user information
@@ -93,7 +101,7 @@ function clearMessages() {
     successMessage.style.display = 'none';
 }
 
-// Login process - Loop önleyici
+// Login process
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -120,13 +128,10 @@ loginForm.addEventListener('submit', async (e) => {
             localStorage.setItem('user', JSON.stringify(data.user));
             localStorage.setItem('auth_email', data.user.email);
             
-            showSuccess('Login successful! Redirecting to StockTrack...');
+            showSuccess('Login successful! Click "Continue to StockTrack" below.');
             
-            // Redirect loop önleme
-            setTimeout(() => {
-                localStorage.setItem('redirect_check', 'true');
-                window.location.href = STOCKTRACK_URL;
-            }, 2000);
+            // Continue butonu ekle
+            addContinueButton();
             
             await testProtectedRoute(data.token);
         } else {
@@ -141,13 +146,13 @@ loginForm.addEventListener('submit', async (e) => {
     }
 });
 
-// Logout - Loop önleyici
+// Logout
 logoutLink.addEventListener('click', (e) => {
     e.preventDefault();
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('auth_email');
-    localStorage.removeItem('redirect_check'); // Loop kontrolünü temizle
+    localStorage.removeItem('redirect_check');
     
     userInfo.style.display = 'none';
     logoutLink.style.display = 'none';
@@ -157,6 +162,12 @@ logoutLink.addEventListener('click', (e) => {
     loginBtn.disabled = false;
     showSuccess('Logged out successfully');
     loginForm.reset();
+    
+    // Continue butonunu kaldır
+    const continueBtn = document.querySelector('.btn[style*="3498db"]');
+    if (continueBtn) {
+        continueBtn.remove();
+    }
 });
 
 // Forgot password
