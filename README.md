@@ -1,56 +1,39 @@
 # projekt-CRUD-EnesTalha-Kayhan
-Możesz uruchomić ten projekt zarówno lokalnie, jak i online.
-Link do Online: https://stocktrack1.netlify.app/
+## A modern web application for managing product inventory with user authentication.
 
-🛠️ Instalacja i uruchomienie
+### 🌐 Live Demo
+Main Application: https://stocktrack1.netlify.app/
 
-Wymagania
-Node.js (wersja 14 lub nowsza)
+Login Page: https://authpage67829.netlify.app/
 
-Instalacja
-Skopiuj pliki projektu do folderu
+### 🔧 Quick Start
+Prerequisites
+Node.js (version 14 or higher)
 
-## 📁yourfilename/
-    ├── package.json
-    ├── server.js
-    ├── index.html
-    ├── style.css
-    └── script.js
+Local Development
+Install dependencies:
 
-Otwórz terminal w folderze projektu i zainstaluj zależności:
 ```bash
 npm install
 ```
-Uruchom backend (serwer):
+Start the backend server:
+
 ```bash
 npm run dev
 ```
-Serwer zostanie uruchomiony pod adresem http://localhost:5000
+Server runs at: http://localhost:5000
 
-Ważna uwaga: Jeśli podzieliłeś pliki na backend i frontend, najpierw wprowadź ścieżkę, w której znajduje się plik package.json.
-```bash
-cd backend
-```
-Aby uruchomić frontend, otwórz NOWY TERMINAL i:
+Start the frontend:
+
 ```bash
 npx live-server --port=3000
 ```
-Aplikacja zostanie uruchomiona pod adresem http://localhost:3000
-```bash
-Sprawdź, czy backend działa: http://localhost:5000/api/products
+Frontend runs at: http://localhost:3000
 
-Czy frontend działa: http://localhost:3000
-```
+### 🛠️ Tech Stack
+Frontend: HTML, CSS, JavaScript
+Backend: Node.js, Express.js, PostgreSQL
 
-## 🚀 Zestaw technologii
-
-### Front-end
-- **HTML**
-- **CSS**
-- **JavaScript**
-
-###Back-end
-- **Node.js**
-- **Express.js**
-- **PostgreSQL** -Serwer
-- **SQLite** -Lokalny
+### 📧 Test Account
+Email: test@test.com
+Password: password
