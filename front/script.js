@@ -42,32 +42,14 @@ function initializeApp() {
     checkAuthAndLoadProducts();
 }
 
-// URL'den parametreleri al
-function getUrlParams() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
-    const email = urlParams.get('email');
-    
-    console.log('URL Parameters:', { token: token ? 'exists' : 'missing', email: email || 'missing' });
-    
-    return { token, email };
-}
-
 // Authentication kontrolü
 async function checkAuthAndLoadProducts() {
-    const urlParams = getUrlParams();
-    const urlToken = urlParams.token;
-    const urlEmail = urlParams.email;
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get('token');
+    const urlEmail = urlParams.get('email');
     
     const localToken = localStorage.getItem('token');
     const localEmail = localStorage.getItem('auth_email');
-    
-    console.log('StockTrack Auth check:', { 
-        urlToken: urlToken ? 'exists' : 'missing',
-        urlEmail: urlEmail || 'missing',
-        localToken: localToken ? 'exists' : 'missing',
-        localEmail: localEmail || 'missing'
-    });
     
     let finalToken = localToken || urlToken;
     let finalEmail = localEmail || urlEmail;
@@ -103,7 +85,7 @@ async function checkAuthAndLoadProducts() {
     }
 }
 
-// Setup user header
+// Setup user header - BUTONSUZ
 function setupUserHeader(email) {
     console.log('Setting up user header for:', email);
     
@@ -132,15 +114,6 @@ function setupUserHeader(email) {
             </div>
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
-            <button id="resetDbBtn" style="
-                background: #f39c12;
-                color: white;
-                border: none;
-                padding: 6px 12px;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 12px;
-            ">Reset DB</button>
             <button id="profileBtn" style="
                 background: #3498db;
                 color: white;
@@ -204,27 +177,6 @@ function setupUserHeader(email) {
         } catch (error) {
             console.error('Profile fetch error:', error);
             alert('Error fetching profile information');
-        }
-    });
-    
-    // Reset DB butonu
-    document.getElementById('resetDbBtn').addEventListener('click', async function() {
-        if (confirm('Reset database? This will clear all products and create test data.')) {
-            try {
-                showMessage('Resetting database...', 'loading');
-                const response = await fetch(`${API_BASE_URL}/api/reset-db`, {
-                    method: 'POST'
-                });
-                
-                if (response.ok) {
-                    showMessage('Database reset successfully!', 'success');
-                    await loadProducts();
-                } else {
-                    throw new Error('Reset failed');
-                }
-            } catch (error) {
-                showMessage('Database reset failed: ' + error.message, 'error');
-            }
         }
     });
 }
@@ -305,15 +257,10 @@ async function loadProducts() {
     } catch (error) {
         console.error('Error loading products:', error);
         showMessage('Failed to load products: ' + error.message, 'error');
-        
-        // Database hatası için özel mesaj
-        if (error.message.includes('user_email') || error.message.includes('column')) {
-            showMessage('Database error. Please click "Reset DB" button in the header.', 'error');
-        }
     }
 }
 
-// Diğer fonksiyonlar aynı kalacak...
+// Diğer fonksiyonlar AYNI KALACAK...
 async function onFormSubmit(e) {
     e.preventDefault();
     
