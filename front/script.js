@@ -1,8 +1,25 @@
 var selectedRow = null;
 
-// Backend URL - DÜZELTİLDİ
+// Backend URL
 const API_BASE_URL = 'https://projekt-crud-enestalha-kayhan.onrender.com';
 const AUTH_URL = 'https://authpage67829.netlify.app';
+
+// ACİL DÜZELTME: URL parametrelerini hemen işle
+const urlParams = new URLSearchParams(window.location.search);
+const token = urlParams.get('token');
+const email = urlParams.get('email');
+
+if (token && email) {
+    console.log('✅ URL parameters found, saving to localStorage...');
+    localStorage.setItem('token', token);
+    localStorage.setItem('auth_email', email);
+    localStorage.setItem('user', JSON.stringify({ email: email }));
+    
+    // URL'yi temizle
+    const cleanUrl = window.location.origin + window.location.pathname;
+    window.history.replaceState({}, document.title, cleanUrl);
+    console.log('✅ URL cleaned:', cleanUrl);
+}
 
 // DOM loaded event
 document.addEventListener('DOMContentLoaded', function() {
@@ -16,7 +33,6 @@ function initializeApp() {
     
     if (!form) {
         console.error('Form element not found!');
-        showMessage('Application error: Form not found', 'error');
         return;
     }
     
@@ -39,12 +55,10 @@ function getUrlParams() {
 
 // Authentication kontrolü
 async function checkAuthAndLoadProducts() {
-    // Önce URL parametrelerini kontrol et
     const urlParams = getUrlParams();
     const urlToken = urlParams.token;
     const urlEmail = urlParams.email;
     
-    // Sonra localStorage'ı kontrol et
     const localToken = localStorage.getItem('token');
     const localEmail = localStorage.getItem('auth_email');
     
@@ -58,31 +72,27 @@ async function checkAuthAndLoadProducts() {
     let finalToken = localToken || urlToken;
     let finalEmail = localEmail || urlEmail;
     
-    // Eğer URL'den token gelmişse, localStorage'a kaydet
     if (urlToken && urlEmail) {
         console.log('Saving URL parameters to localStorage...');
         localStorage.setItem('token', urlToken);
         localStorage.setItem('auth_email', urlEmail);
         localStorage.setItem('user', JSON.stringify({ email: urlEmail }));
         
-        // URL'den parametreleri temizle
         window.history.replaceState({}, document.title, window.location.pathname);
         
         finalToken = urlToken;
         finalEmail = urlEmail;
     }
     
-    // Eğer hala token veya email yoksa login'e gönder
     if (!finalToken || !finalEmail) {
         console.log('No authentication found, redirecting to login');
-        showMessage('Please login first', 'error');
+        showMessage('Please login first... Redirecting...', 'error');
         setTimeout(() => {
             window.location.href = AUTH_URL;
         }, 2000);
         return;
     }
     
-    // Token ve email varsa, doğrudan ürünleri yükle
     try {
         console.log('Authentication found, setting up interface for:', finalEmail);
         setupUserHeader(finalEmail);
@@ -93,7 +103,7 @@ async function checkAuthAndLoadProducts() {
     }
 }
 
-// Setup user header in top-left position
+// Setup user header
 function setupUserHeader(email) {
     console.log('Setting up user header for:', email);
     
@@ -122,6 +132,15 @@ function setupUserHeader(email) {
             </div>
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
+            <button id="resetDbBtn" style="
+                background: #f39c12;
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 12px;
+            ">Reset DB</button>
             <button id="profileBtn" style="
                 background: #3498db;
                 color: white;
@@ -130,7 +149,6 @@ function setupUserHeader(email) {
                 border-radius: 4px;
                 cursor: pointer;
                 font-size: 12px;
-                transition: background 0.3s ease;
             ">Profile</button>
             <button id="logoutBtn" style="
                 background: #e74c3c;
@@ -140,7 +158,6 @@ function setupUserHeader(email) {
                 border-radius: 4px;
                 cursor: pointer;
                 font-size: 12px;
-                transition: background 0.3s ease;
             ">Logout</button>
         </div>
     `;
@@ -155,37 +172,15 @@ function setupUserHeader(email) {
         container.insertBefore(header, firstChild);
     }
     
-    // Add hover effects
-    const profileBtn = document.getElementById('profileBtn');
-    const logoutBtn = document.getElementById('logoutBtn');
-    
-    profileBtn.addEventListener('mouseenter', () => {
-        profileBtn.style.background = '#2980b9';
-    });
-    profileBtn.addEventListener('mouseleave', () => {
-        profileBtn.style.background = '#3498db';
-    });
-    
-    logoutBtn.addEventListener('mouseenter', () => {
-        logoutBtn.style.background = '#c0392b';
-    });
-    logoutBtn.addEventListener('mouseleave', () => {
-        logoutBtn.style.background = '#e74c3c';
-    });
-    
-    // Logout event listener
-    logoutBtn.addEventListener('click', function() {
-        console.log('Logout clicked');
+    // Event listeners
+    document.getElementById('logoutBtn').addEventListener('click', function() {
         if (confirm('Are you sure you want to logout?')) {
-            // Tüm storage'ı temizle
             localStorage.clear();
-            console.log('LocalStorage cleared, redirecting to login');
             window.location.href = AUTH_URL;
         }
     });
     
-    // Profile event listener
-    profileBtn.addEventListener('click', async function() {
+    document.getElementById('profileBtn').addEventListener('click', async function() {
         const token = localStorage.getItem('token');
         if (!token) {
             alert('Please login again');
@@ -211,6 +206,27 @@ function setupUserHeader(email) {
             alert('Error fetching profile information');
         }
     });
+    
+    // Reset DB butonu
+    document.getElementById('resetDbBtn').addEventListener('click', async function() {
+        if (confirm('Reset database? This will clear all products and create test data.')) {
+            try {
+                showMessage('Resetting database...', 'loading');
+                const response = await fetch(`${API_BASE_URL}/api/reset-db`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    showMessage('Database reset successfully!', 'success');
+                    await loadProducts();
+                } else {
+                    throw new Error('Reset failed');
+                }
+            } catch (error) {
+                showMessage('Database reset failed: ' + error.message, 'error');
+            }
+        }
+    });
 }
 
 // Load products
@@ -224,17 +240,12 @@ async function loadProducts() {
             throw new Error('No token found');
         }
         
-        console.log('Fetching products from:', `${API_BASE_URL}/api/products`);
-        
         const response = await fetch(`${API_BASE_URL}/api/products`, {
             headers: {
                 'Authorization': 'Bearer ' + token
             }
         });
         
-        console.log('Products response status:', response.status);
-        
-        // Eğer 401 hatası alırsak, token geçersiz demektir
         if (response.status === 401) {
             console.log('Token invalid, clearing storage and redirecting to login');
             localStorage.clear();
@@ -243,7 +254,6 @@ async function loadProducts() {
         }
         
         if (!response.ok) {
-            // Detaylı hata mesajı al
             const errorText = await response.text();
             console.error('Server error response:', errorText);
             throw new Error(`Server error: ${response.status} - ${errorText}`);
@@ -295,6 +305,11 @@ async function loadProducts() {
     } catch (error) {
         console.error('Error loading products:', error);
         showMessage('Failed to load products: ' + error.message, 'error');
+        
+        // Database hatası için özel mesaj
+        if (error.message.includes('user_email') || error.message.includes('column')) {
+            showMessage('Database error. Please click "Reset DB" button in the header.', 'error');
+        }
     }
 }
 
@@ -319,7 +334,6 @@ async function onFormSubmit(e) {
         const token = localStorage.getItem('token');
         
         if (selectedRow === null) {
-            // Add new product
             const response = await fetch(`${API_BASE_URL}/api/products`, {
                 method: 'POST',
                 headers: {
@@ -336,7 +350,6 @@ async function onFormSubmit(e) {
             
             showMessage('Product added successfully!', 'success');
         } else {
-            // Update product
             const productId = selectedRow.getAttribute('data-id');
             const response = await fetch(`${API_BASE_URL}/api/products/${productId}`, {
                 method: 'PUT',
@@ -480,5 +493,4 @@ function hideMessage() {
 window.onEdit = onEdit;
 window.onDelete = onDelete;
 
-// Sayfa yüklendiğinde console'a mesaj yaz
 console.log('StockTrack application initialized');
