@@ -1,6 +1,6 @@
 var selectedRow = null;
 
-// Backend URL
+// Backend URL - DÜZELTİLDİ
 const API_BASE_URL = 'https://projekt-crud-enestalha-kayhan.onrender.com';
 const AUTH_URL = 'https://authpage67829.netlify.app';
 
@@ -16,6 +16,7 @@ function initializeApp() {
     
     if (!form) {
         console.error('Form element not found!');
+        showMessage('Application error: Form not found', 'error');
         return;
     }
     
@@ -36,7 +37,7 @@ function getUrlParams() {
     return { token, email };
 }
 
-// Authentication kontrolü - URL parametrelerini de kontrol et
+// Authentication kontrolü
 async function checkAuthAndLoadProducts() {
     // Önce URL parametrelerini kontrol et
     const urlParams = getUrlParams();
@@ -74,7 +75,10 @@ async function checkAuthAndLoadProducts() {
     // Eğer hala token veya email yoksa login'e gönder
     if (!finalToken || !finalEmail) {
         console.log('No authentication found, redirecting to login');
-        window.location.href = AUTH_URL;
+        showMessage('Please login first', 'error');
+        setTimeout(() => {
+            window.location.href = AUTH_URL;
+        }, 2000);
         return;
     }
     
@@ -85,7 +89,7 @@ async function checkAuthAndLoadProducts() {
         await loadProducts();
     } catch (error) {
         console.error('Error in StockTrack:', error);
-        showMessage('Error loading application', 'error');
+        showMessage('Error loading application: ' + error.message, 'error');
     }
 }
 
