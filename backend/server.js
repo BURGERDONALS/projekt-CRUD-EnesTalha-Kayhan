@@ -15,7 +15,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-secret-key-for-development';
 
-// CORS Configuration
+// CORS Configuration - DÜZELTİLDİ
 const allowedOrigins = [
   'https://stocktrack1.netlify.app',
   'https://authpage67829.netlify.app',
@@ -26,15 +26,20 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
+    // Origin yoksa (mobile app, postman gibi) izin ver
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
+    
+    // Allow list'teki origin'lere izin ver
+    if (allowedOrigins.indexOf(origin) !== -1) {
       return callback(null, true);
+    } else {
+      // Allow list'te yoksa CORS hatası döndür
+      return callback(new Error('CORS policy: Origin not allowed'), false);
     }
-    return callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 }));
 
 // Middleware
@@ -87,8 +92,13 @@ async function initializeDatabase() {
   }
 }
 
-// Token verification middleware
+// Token verification middleware - DÜZELTİLDİ
 function authenticateToken(req, res, next) {
+  // Preflight OPTIONS isteklerini atla
+  if (req.method === 'OPTIONS') {
+    return next();
+  }
+
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -169,7 +179,7 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// Login endpoint
+// Login endpoint - DÜZELTİLDİ
 app.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -212,7 +222,7 @@ app.post('/login', async (req, res) => {
         email: user.email,
         role: user.role
       },
-      redirectTo: 'https://stocktrack1.netlify.app'
+      redirectTo: process.env.FRONTEND_URL || 'https://stocktrack1.netlify.app'
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -271,7 +281,7 @@ app.get('/api/user-info', authenticateToken, async (req, res) => {
   });
 });
 
-// Get all products for authenticated user - DÜZELTİLDİ
+// Get all products for authenticated user
 app.get('/api/products', authenticateToken, async (req, res) => {
   try {
     console.log('Fetching products for user:', req.user.email);
@@ -289,7 +299,7 @@ app.get('/api/products', authenticateToken, async (req, res) => {
   }
 });
 
-// Add new product - DÜZELTİLDİ
+// Add new product
 app.post('/api/products', authenticateToken, async (req, res) => {
   try {
     const { productCode, product, qty, perPrice } = req.body;
@@ -313,7 +323,7 @@ app.post('/api/products', authenticateToken, async (req, res) => {
   }
 });
 
-// Update product - DÜZELTİLDİ
+// Update product
 app.put('/api/products/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -338,7 +348,7 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Delete product - DÜZELTİLDİ
+// Delete product
 app.delete('/api/products/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -382,10 +392,24 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// Error handling middleware
-app.use((error, req, res, next) => {
-  console.error('Unhandled error:', error);
-  res.status(500).json({ error: 'Internal server error' });
+// Global error handling middleware - DÜZELTİLDİ
+app.use((err, req, res, next) => {
+  console.error('Global error handler:', err);
+  
+  // CORS hataları için özel handling
+  if (err.message === 'CORS policy: Origin not allowed') {
+    return res.status(403).json({ 
+      error: 'CORS: Origin not allowed',
+      allowedOrigins: allowedOrigins
+    });
+  }
+  
+  // Diğer hatalar
+  res.status(500).json({ 
+    error: process.env.NODE_ENV === 'production' 
+      ? 'Internal server error' 
+      : err.message 
+  });
 });
 
 // 404 handler
@@ -402,6 +426,7 @@ async function startServer() {
       console.log(`🚀 Combined Server running on port ${PORT}`);
       console.log(`📍 Health check: http://0.0.0.0:${PORT}/health`);
       console.log(`🔑 Test user: test@test.com / password`);
+      console.log(`🌐 Allowed origins: ${allowedOrigins.join(', ')}`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
