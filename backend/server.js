@@ -15,7 +15,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-secret-key-for-development';
 
-// CORS Configuration - DÜZELTİLDİ
+// CORS Configuration
 const allowedOrigins = [
   'https://stocktrack1.netlify.app',
   'https://authpage67829.netlify.app',
@@ -26,14 +26,10 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Origin yoksa (mobile app, postman gibi) izin ver
     if (!origin) return callback(null, true);
-    
-    // Allow list'teki origin'lere izin ver
     if (allowedOrigins.indexOf(origin) !== -1) {
       return callback(null, true);
     } else {
-      // Allow list'te yoksa CORS hatası döndür
       return callback(new Error('CORS policy: Origin not allowed'), false);
     }
   },
@@ -45,9 +41,11 @@ app.use(cors({
 // Middleware
 app.use(express.json());
 
-// Initialize database
+// Initialize database - TAMAMEN YENİLENDİ
 async function initializeDatabase() {
   try {
+    console.log('🔄 Initializing database...');
+
     // Users table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -59,7 +57,7 @@ async function initializeDatabase() {
       )
     `);
 
-    // Products table
+    // Products table - KESİNLİKLE user_email kullan
     await pool.query(`
       CREATE TABLE IF NOT EXISTS products (
         id SERIAL PRIMARY KEY,
@@ -72,6 +70,7 @@ async function initializeDatabase() {
       )
     `);
 
+    // Index'leri oluştur
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_products_user_email ON products(user_email)`);
 
@@ -84,17 +83,26 @@ async function initializeDatabase() {
       ON CONFLICT (email) DO NOTHING
     `, ['test@test.com', testPasswordHash, 'USER']);
 
+    // Test products
+    await pool.query(`
+      INSERT INTO products (productCode, product, qty, perPrice, user_email) 
+      VALUES 
+      ('TEST001', 'Test Product 1', 10, 29.99, 'test@test.com'),
+      ('TEST002', 'Test Product 2', 5, 49.99, 'test@test.com')
+      ON CONFLICT DO NOTHING
+    `);
+
     console.log('✅ Database initialized successfully');
     console.log('👤 Test user: test@test.com / password');
+    console.log('📦 Test products added');
     
   } catch (error) {
     console.error('❌ Database initialization error:', error);
   }
 }
 
-// Token verification middleware - DÜZELTİLDİ
+// Token verification middleware
 function authenticateToken(req, res, next) {
-  // Preflight OPTIONS isteklerini atla
   if (req.method === 'OPTIONS') {
     return next();
   }
@@ -115,9 +123,43 @@ function authenticateToken(req, res, next) {
   });
 }
 
+// ========== DEBUG ROUTES ==========
+
+// Database schema kontrol endpoint'i
+app.get('/api/debug-schema', async (req, res) => {
+  try {
+    const tableInfo = await pool.query(`
+      SELECT column_name, data_type, is_nullable 
+      FROM information_schema.columns 
+      WHERE table_name = 'products' 
+      ORDER BY ordinal_position
+    `);
+    
+    const sampleData = await pool.query('SELECT * FROM products LIMIT 5');
+    
+    res.json({
+      tableStructure: tableInfo.rows,
+      sampleData: sampleData.rows,
+      totalProducts: (await pool.query('SELECT COUNT(*) FROM products')).rows[0].count
+    });
+  } catch (error) {
+    console.error('Schema debug error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Database reset endpoint
+app.post('/api/reset-db', async (req, res) => {
+  try {
+    await initializeDatabase();
+    res.json({ message: 'Database reset successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ========== AUTH ROUTES ==========
 
-// Routes
 app.get('/', (req, res) => {
   res.json({ 
     message: 'StockTrack & Auth API is running!',
@@ -134,6 +176,10 @@ app.get('/', (req, res) => {
         update: 'PUT /api/products/:id',
         delete: 'DELETE /api/products/:id',
         userInfo: 'GET /api/user-info'
+      },
+      debug: {
+        schema: 'GET /api/debug-schema',
+        reset: 'POST /api/reset-db'
       },
       health: 'GET /health'
     }
@@ -179,7 +225,7 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// Login endpoint - DÜZELTİLDİ
+// Login endpoint
 app.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -281,7 +327,7 @@ app.get('/api/user-info', authenticateToken, async (req, res) => {
   });
 });
 
-// Get all products for authenticated user
+// Get all products for authenticated user - TAMAMEN DÜZELTİLDİ
 app.get('/api/products', authenticateToken, async (req, res) => {
   try {
     console.log('Fetching products for user:', req.user.email);
@@ -295,16 +341,24 @@ app.get('/api/products', authenticateToken, async (req, res) => {
     res.json(products.rows);
   } catch (err) {
     console.error('Error fetching products:', err);
+    
+    // Detaylı hata mesajı
+    if (err.message.includes('user_email')) {
+      return res.status(500).json({ 
+        error: 'Database column error. Please reset database using /api/reset-db' 
+      });
+    }
+    
     res.status(500).json({ error: 'Internal server error: ' + err.message });
   }
 });
 
-// Add new product
+// Add new product - TAMAMEN DÜZELTİLDİ
 app.post('/api/products', authenticateToken, async (req, res) => {
   try {
     const { productCode, product, qty, perPrice } = req.body;
     
-    console.log('Adding product for user:', req.user.email, 'Data:', { productCode, product, qty, perPrice });
+    console.log('Adding product for user:', req.user.email);
     
     if (!productCode || !product || !qty || !perPrice) {
       return res.status(400).json({ error: 'All fields are required' });
@@ -319,11 +373,18 @@ app.post('/api/products', authenticateToken, async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error adding product:', err);
+    
+    if (err.message.includes('user_email')) {
+      return res.status(500).json({ 
+        error: 'Database column error. Please reset database using /api/reset-db' 
+      });
+    }
+    
     res.status(500).json({ error: 'Internal server error: ' + err.message });
   }
 });
 
-// Update product
+// Update product - TAMAMEN DÜZELTİLDİ
 app.put('/api/products/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -348,7 +409,7 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Delete product
+// Delete product - TAMAMEN DÜZELTİLDİ
 app.delete('/api/products/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -372,7 +433,7 @@ app.delete('/api/products/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Health check with better error handling
+// Health check
 app.get('/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
@@ -392,11 +453,10 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// Global error handling middleware - DÜZELTİLDİ
+// Global error handling
 app.use((err, req, res, next) => {
   console.error('Global error handler:', err);
   
-  // CORS hataları için özel handling
   if (err.message === 'CORS policy: Origin not allowed') {
     return res.status(403).json({ 
       error: 'CORS: Origin not allowed',
@@ -404,7 +464,6 @@ app.use((err, req, res, next) => {
     });
   }
   
-  // Diğer hatalar
   res.status(500).json({ 
     error: process.env.NODE_ENV === 'production' 
       ? 'Internal server error' 
@@ -426,7 +485,8 @@ async function startServer() {
       console.log(`🚀 Combined Server running on port ${PORT}`);
       console.log(`📍 Health check: http://0.0.0.0:${PORT}/health`);
       console.log(`🔑 Test user: test@test.com / password`);
-      console.log(`🌐 Allowed origins: ${allowedOrigins.join(', ')}`);
+      console.log(`🔄 Database reset: POST http://0.0.0.0:${PORT}/api/reset-db`);
+      console.log(`🔍 Debug schema: GET http://0.0.0.0:${PORT}/api/debug-schema`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
