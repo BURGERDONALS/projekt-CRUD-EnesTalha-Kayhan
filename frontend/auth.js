@@ -34,8 +34,8 @@ async function checkBackendConnection() {
     }
 }
 
-// Check if user is already logged in
-function checkAuthStatus() {
+// Check if user is already logged in - DÜZELTİLDİ
+async function checkAuthStatus() {
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
     const authEmail = localStorage.getItem('auth_email');
@@ -48,27 +48,41 @@ function checkAuthStatus() {
     
     if (token && user && authEmail) {
         try {
-            const userData = JSON.parse(user);
-            showUserInfo(userData);
-            showSuccess('You are already logged in. Redirecting to StockTrack...');
+            // Token'ın geçerliliğini backend'de kontrol et
+            const response = await fetch(`${API_BASE_URL}/api/profile`, {
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            });
             
-            // Hızlı redirect - 1.5 saniye
-            setTimeout(() => {
-                console.log('Auto-redirecting to StockTrack...');
-                redirectToStockTrack(token, authEmail);
-            }, 1500);
+            if (response.ok) {
+                const userData = JSON.parse(user);
+                showUserInfo(userData);
+                showSuccess('You are already logged in. Redirecting to StockTrack...');
+                
+                setTimeout(() => {
+                    redirectToStockTrack(token, authEmail);
+                }, 1500);
+            } else {
+                // Token geçersizse storage'ı temizle
+                localStorage.clear();
+                console.log('Token invalid, cleared storage');
+                showError('Session expired. Please login again.');
+            }
         } catch (error) {
-            console.error('Error parsing user data:', error);
+            console.error('Auth check error:', error);
             localStorage.clear();
+            showError('Authentication check failed. Please login again.');
         }
     } else {
         console.log('Not logged in, showing login form');
+        // Storage'da tutarsızlık varsa temizle
+        localStorage.clear();
     }
 }
 
 // Redirect to StockTrack with token in URL
 function redirectToStockTrack(token, email) {
-    // Token'ı URL parameter olarak gönder
     const redirectUrl = `${STOCKTRACK_URL}?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
     console.log('Redirecting to:', redirectUrl);
     window.location.href = redirectUrl;
@@ -81,6 +95,10 @@ function showUserInfo(user) {
     userInfo.style.display = 'block';
     loginBtn.textContent = 'Login Successful';
     loginBtn.disabled = true;
+    
+    // Form alanlarını devre dışı bırak
+    document.getElementById('email').disabled = true;
+    document.getElementById('password').disabled = true;
 }
 
 // Show error message
@@ -139,14 +157,13 @@ loginForm.addEventListener('submit', async (e) => {
             showSuccess('Login successful! Redirecting to StockTrack...');
             showUserInfo(data.user);
             
-            // Hızlı redirect - 1.5 saniye
             setTimeout(() => {
                 console.log('Redirecting to StockTrack...');
                 redirectToStockTrack(data.token, data.user.email);
             }, 1500);
             
         } else {
-            showError('Error: ' + data.error);
+            showError('Error: ' + (data.error || 'Login failed'));
         }
     } catch (error) {
         console.error('Login error:', error);
@@ -163,9 +180,41 @@ forgotPassword.addEventListener('click', (e) => {
     showError('Password reset feature coming soon!');
 });
 
+// Manual logout function
+function manualLogout() {
+    if (confirm('Are you sure you want to logout?')) {
+        localStorage.clear();
+        window.location.reload();
+    }
+}
+
+// Add logout button if user is logged in
+function addLogoutButton() {
+    const token = localStorage.getItem('token');
+    if (token) {
+        const logoutBtn = document.createElement('button');
+        logoutBtn.textContent = 'Logout';
+        logoutBtn.style.cssText = `
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-size: 14px;
+        `;
+        logoutBtn.onclick = manualLogout;
+        
+        const form = document.getElementById('loginForm');
+        form.appendChild(logoutBtn);
+    }
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Login page initialized');
     checkBackendConnection();
     checkAuthStatus();
+    addLogoutButton();
 });

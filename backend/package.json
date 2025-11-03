@@ -1,7 +1,7 @@
 {
-  "name": "auth-system-backend",
+  "name": "stocktrack-auth-backend",
   "version": "1.0.0",
-  "description": "Authentication backend with PostgreSQL",
+  "description": "Combined Authentication and StockTrack Backend",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -14,6 +14,9 @@
     "jsonwebtoken": "^9.0.2",
     "cors": "^2.8.5",
     "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
   },
   "engines": {
     "node": ">=18.0.0"
