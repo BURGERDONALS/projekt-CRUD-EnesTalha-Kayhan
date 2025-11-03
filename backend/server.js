@@ -41,7 +41,7 @@ app.use(cors({
 // Middleware
 app.use(express.json());
 
-// Initialize database - TAMAMEN YENİLENDİ
+// Initialize database - OTOMATİK DÜZELTME
 async function initializeDatabase() {
   try {
     console.log('🔄 Initializing database...');
@@ -57,18 +57,54 @@ async function initializeDatabase() {
       )
     `);
 
-    // Products table - KESİNLİKLE user_email kullan
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS products (
-        id SERIAL PRIMARY KEY,
-        productCode VARCHAR(50) NOT NULL,
-        product VARCHAR(100) NOT NULL,
-        qty INTEGER NOT NULL,
-        perPrice DECIMAL(10,2) NOT NULL,
-        user_email VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+    // Products table - Kolon ismini kontrol et ve gerekirse değiştir
+    try {
+      // Önce mevcut tabloyu kontrol et
+      const tableCheck = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'products' 
+        AND column_name IN ('user_email', 'email')
+      `);
+      
+      const columns = tableCheck.rows.map(row => row.column_name);
+      
+      if (columns.length === 0) {
+        // Tablo yoksa oluştur
+        await pool.query(`
+          CREATE TABLE products (
+            id SERIAL PRIMARY KEY,
+            productCode VARCHAR(50) NOT NULL,
+            product VARCHAR(100) NOT NULL,
+            qty INTEGER NOT NULL,
+            perPrice DECIMAL(10,2) NOT NULL,
+            user_email VARCHAR(255) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+        `);
+        console.log('✅ Products table created with user_email column');
+      } else if (columns.includes('email') && !columns.includes('user_email')) {
+        // email kolonu varsa user_email'e rename et
+        await pool.query('ALTER TABLE products RENAME COLUMN email TO user_email');
+        console.log('✅ Renamed email column to user_email');
+      }
+      
+    } catch (error) {
+      // Hata durumunda tabloyu sıfırdan oluştur
+      await pool.query('DROP TABLE IF EXISTS products CASCADE');
+      await pool.query(`
+        CREATE TABLE products (
+          id SERIAL PRIMARY KEY,
+          productCode VARCHAR(50) NOT NULL,
+          product VARCHAR(100) NOT NULL,
+          qty INTEGER NOT NULL,
+          perPrice DECIMAL(10,2) NOT NULL,
+          user_email VARCHAR(255) NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log('✅ Products table recreated with user_email column');
+    }
 
     // Index'leri oluştur
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
@@ -83,18 +119,8 @@ async function initializeDatabase() {
       ON CONFLICT (email) DO NOTHING
     `, ['test@test.com', testPasswordHash, 'USER']);
 
-    // Test products
-    await pool.query(`
-      INSERT INTO products (productCode, product, qty, perPrice, user_email) 
-      VALUES 
-      ('TEST001', 'Test Product 1', 10, 29.99, 'test@test.com'),
-      ('TEST002', 'Test Product 2', 5, 49.99, 'test@test.com')
-      ON CONFLICT DO NOTHING
-    `);
-
     console.log('✅ Database initialized successfully');
     console.log('👤 Test user: test@test.com / password');
-    console.log('📦 Test products added');
     
   } catch (error) {
     console.error('❌ Database initialization error:', error);
@@ -123,41 +149,6 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// ========== DEBUG ROUTES ==========
-
-// Database schema kontrol endpoint'i
-app.get('/api/debug-schema', async (req, res) => {
-  try {
-    const tableInfo = await pool.query(`
-      SELECT column_name, data_type, is_nullable 
-      FROM information_schema.columns 
-      WHERE table_name = 'products' 
-      ORDER BY ordinal_position
-    `);
-    
-    const sampleData = await pool.query('SELECT * FROM products LIMIT 5');
-    
-    res.json({
-      tableStructure: tableInfo.rows,
-      sampleData: sampleData.rows,
-      totalProducts: (await pool.query('SELECT COUNT(*) FROM products')).rows[0].count
-    });
-  } catch (error) {
-    console.error('Schema debug error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Database reset endpoint
-app.post('/api/reset-db', async (req, res) => {
-  try {
-    await initializeDatabase();
-    res.json({ message: 'Database reset successfully' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // ========== AUTH ROUTES ==========
 
 app.get('/', (req, res) => {
@@ -176,10 +167,6 @@ app.get('/', (req, res) => {
         update: 'PUT /api/products/:id',
         delete: 'DELETE /api/products/:id',
         userInfo: 'GET /api/user-info'
-      },
-      debug: {
-        schema: 'GET /api/debug-schema',
-        reset: 'POST /api/reset-db'
       },
       health: 'GET /health'
     }
@@ -327,7 +314,7 @@ app.get('/api/user-info', authenticateToken, async (req, res) => {
   });
 });
 
-// Get all products for authenticated user - TAMAMEN DÜZELTİLDİ
+// Get all products for authenticated user - OTOMATİK KOLON DÜZELTME
 app.get('/api/products', authenticateToken, async (req, res) => {
   try {
     console.log('Fetching products for user:', req.user.email);
@@ -342,18 +329,31 @@ app.get('/api/products', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Error fetching products:', err);
     
-    // Detaylı hata mesajı
-    if (err.message.includes('user_email')) {
-      return res.status(500).json({ 
-        error: 'Database column error. Please reset database using /api/reset-db' 
-      });
+    // Kolon hatası durumunda otomatik düzelt
+    if (err.message.includes('user_email') || err.message.includes('column')) {
+      try {
+        console.log('🔄 Auto-fixing database column...');
+        await initializeDatabase();
+        
+        // Tekrar dene
+        const products = await pool.query(
+          'SELECT * FROM products WHERE user_email = $1 ORDER BY id DESC',
+          [req.user.email]
+        );
+        
+        console.log('Products found after fix:', products.rows.length);
+        return res.json(products.rows);
+      } catch (fixError) {
+        console.error('Auto-fix failed:', fixError);
+        return res.status(500).json({ error: 'Database auto-fix failed' });
+      }
     }
     
     res.status(500).json({ error: 'Internal server error: ' + err.message });
   }
 });
 
-// Add new product - TAMAMEN DÜZELTİLDİ
+// Add new product - OTOMATİK KOLON DÜZELTME
 app.post('/api/products', authenticateToken, async (req, res) => {
   try {
     const { productCode, product, qty, perPrice } = req.body;
@@ -374,17 +374,31 @@ app.post('/api/products', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Error adding product:', err);
     
-    if (err.message.includes('user_email')) {
-      return res.status(500).json({ 
-        error: 'Database column error. Please reset database using /api/reset-db' 
-      });
+    // Kolon hatası durumunda otomatik düzelt
+    if (err.message.includes('user_email') || err.message.includes('column')) {
+      try {
+        console.log('🔄 Auto-fixing database column...');
+        await initializeDatabase();
+        
+        // Tekrar dene
+        const result = await pool.query(
+          'INSERT INTO products (productCode, product, qty, perPrice, user_email) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+          [productCode, product, parseInt(qty), parseFloat(perPrice), req.user.email]
+        );
+        
+        console.log('Product added successfully after fix:', result.rows[0]);
+        return res.status(201).json(result.rows[0]);
+      } catch (fixError) {
+        console.error('Auto-fix failed:', fixError);
+        return res.status(500).json({ error: 'Database auto-fix failed' });
+      }
     }
     
     res.status(500).json({ error: 'Internal server error: ' + err.message });
   }
 });
 
-// Update product - TAMAMEN DÜZELTİLDİ
+// Update product
 app.put('/api/products/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -409,7 +423,7 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Delete product - TAMAMEN DÜZELTİLDİ
+// Delete product
 app.delete('/api/products/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -485,8 +499,6 @@ async function startServer() {
       console.log(`🚀 Combined Server running on port ${PORT}`);
       console.log(`📍 Health check: http://0.0.0.0:${PORT}/health`);
       console.log(`🔑 Test user: test@test.com / password`);
-      console.log(`🔄 Database reset: POST http://0.0.0.0:${PORT}/api/reset-db`);
-      console.log(`🔍 Debug schema: GET http://0.0.0.0:${PORT}/api/debug-schema`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
