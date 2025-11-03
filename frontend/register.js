@@ -7,27 +7,27 @@ const loginLink = document.getElementById('loginLink');
 const registerBtn = document.getElementById('registerBtn');
 const errorMessage = document.getElementById('errorMessage');
 const successMessage = document.getElementById('successMessage');
-const backendStatus = document.getElementById('backendStatus');
+//const backendStatus = document.getElementById('backendStatus');
 
 // Check backend connection on load
-async function checkBackendConnection() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/health`);
-        const data = await response.json();
+// async function checkBackendConnection() {
+//     try {
+//         const response = await fetch(`${API_BASE_URL}/health`);
+//         const data = await response.json();
         
-        if (response.ok) {
-            backendStatus.textContent = 'Connected ✅';
-            backendStatus.style.color = '#4CAF50';
-        } else {
-            backendStatus.textContent = 'Error ❌';
-            backendStatus.style.color = '#ff6b6b';
-        }
-    } catch (error) {
-        backendStatus.textContent = 'Offline ❌';
-        backendStatus.style.color = '#ff6b6b';
-        console.error('Backend connection failed:', error);
-    }
-}
+//         if (response.ok) {
+//             backendStatus.textContent = 'Connected ✅';
+//             backendStatus.style.color = '#4CAF50';
+//         } else {
+//             backendStatus.textContent = 'Error ❌';
+//             backendStatus.style.color = '#ff6b6b';
+//         }
+//     } catch (error) {
+//         backendStatus.textContent = 'Offline ❌';
+//         backendStatus.style.color = '#ff6b6b';
+//         console.error('Backend connection failed:', error);
+//     }
+// }
 
 // Show error message
 function showError(message) {
@@ -112,4 +112,4 @@ registerForm.addEventListener('submit', async (e) => {
 });
 
 // Initialize
-document.addEventListener('DOMContentLoaded', checkBackendConnection);
+//document.addEventListener('DOMContentLoaded', checkBackendConnection);

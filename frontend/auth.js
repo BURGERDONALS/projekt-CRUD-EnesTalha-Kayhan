@@ -5,34 +5,10 @@ const STOCKTRACK_URL = 'https://stocktrack1.netlify.app';
 // DOM Elements
 const loginForm = document.getElementById('loginForm');
 const registerLink = document.getElementById('registerLink');
-const forgotPassword = document.getElementById('forgotPassword');
 const loginBtn = document.getElementById('loginBtn');
 const errorMessage = document.getElementById('errorMessage');
 const successMessage = document.getElementById('successMessage');
-const userInfo = document.getElementById('userInfo');
 const userEmail = document.getElementById('userEmail');
-const userRole = document.getElementById('userRole');
-const backendStatus = document.getElementById('backendStatus');
-
-// Check backend connection on load
-async function checkBackendConnection() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/health`);
-        const data = await response.json();
-        
-        if (response.ok) {
-            backendStatus.textContent = 'Connected ✅';
-            backendStatus.style.color = '#4CAF50';
-        } else {
-            backendStatus.textContent = 'Error ❌';
-            backendStatus.style.color = '#ff6b6b';
-        }
-    } catch (error) {
-        backendStatus.textContent = 'Offline ❌';
-        backendStatus.style.color = '#ff6b6b';
-        console.error('Backend connection failed:', error);
-    }
-}
 
 // Check if user is already logged in - DÜZELTİLDİ
 async function checkAuthStatus() {
@@ -56,8 +32,6 @@ async function checkAuthStatus() {
             });
             
             if (response.ok) {
-                const userData = JSON.parse(user);
-                showUserInfo(userData);
                 showSuccess('You are already logged in. Redirecting to StockTrack...');
                 
                 setTimeout(() => {
@@ -86,19 +60,6 @@ function redirectToStockTrack(token, email) {
     const redirectUrl = `${STOCKTRACK_URL}?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
     console.log('Redirecting to:', redirectUrl);
     window.location.href = redirectUrl;
-}
-
-// Show user information
-function showUserInfo(user) {
-    userEmail.textContent = user.email;
-    userRole.textContent = user.role;
-    userInfo.style.display = 'block';
-    loginBtn.textContent = 'Login Successful';
-    loginBtn.disabled = true;
-    
-    // Form alanlarını devre dışı bırak
-    document.getElementById('email').disabled = true;
-    document.getElementById('password').disabled = true;
 }
 
 // Show error message
@@ -155,7 +116,6 @@ loginForm.addEventListener('submit', async (e) => {
             console.log('Login successful, data saved to localStorage');
             
             showSuccess('Login successful! Redirecting to StockTrack...');
-            showUserInfo(data.user);
             
             setTimeout(() => {
                 console.log('Redirecting to StockTrack...');
@@ -172,12 +132,6 @@ loginForm.addEventListener('submit', async (e) => {
         loginBtn.disabled = false;
         loginBtn.textContent = 'Login';
     }
-});
-
-// Forgot password
-forgotPassword.addEventListener('click', (e) => {
-    e.preventDefault();
-    showError('Password reset feature coming soon!');
 });
 
 // Manual logout function
@@ -214,7 +168,6 @@ function addLogoutButton() {
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Login page initialized');
-    checkBackendConnection();
     checkAuthStatus();
     addLogoutButton();
 });
