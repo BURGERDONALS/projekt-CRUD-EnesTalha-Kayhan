@@ -85,15 +85,15 @@ async function checkAuthAndLoadProducts() {
     }
 }
 
-// Setup user header - BUTONSUZ
+// Setup user header - GÖRSEL DÜZENLEMELER YAPILDI
 function setupUserHeader(email) {
     console.log('Setting up user header for:', email);
     
     const header = document.createElement('div');
     header.style.cssText = `
-        background: #2c3e50;
-        color: white;
-        padding: 12px 20px;
+        background: #f8f9fa;
+        color: black;
+        padding: 15px 20px;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -103,34 +103,28 @@ function setupUserHeader(email) {
         top: 0;
         z-index: 100;
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border: 1px solid #e1e8ed;
     `;
     
     header.innerHTML = `
         <div style="display: flex; align-items: center; gap: 15px;">
             <div style="background: #4CAF50; width: 8px; height: 8px; border-radius: 50%;"></div>
             <div>
-                <strong style="color: white; font-size: 14px;">Welcome, ${email}</strong>
-                <div style="font-size: 11px; color: #bdc3c7; margin-top: 2px;">StockTrack Dashboard</div>
+                <strong style="color: black; font-size: 16px; font-weight: 600;">Welcome, ${email}</strong>
+                <div style="font-size: 12px; color: #666; margin-top: 2px;">StockTrack Dashboard</div>
             </div>
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
-            <button id="profileBtn" style="
-                background: #3498db;
-                color: white;
-                border: none;
-                padding: 6px 12px;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 12px;
-            ">Profile</button>
             <button id="logoutBtn" style="
                 background: #e74c3c;
                 color: white;
                 border: none;
-                padding: 6px 12px;
+                padding: 8px 16px;
                 border-radius: 4px;
                 cursor: pointer;
-                font-size: 12px;
+                font-size: 14px;
+                font-weight: 500;
+                transition: background 0.3s ease;
             ">Logout</button>
         </div>
     `;
@@ -145,38 +139,20 @@ function setupUserHeader(email) {
         container.insertBefore(header, firstChild);
     }
     
-    // Event listeners
-    document.getElementById('logoutBtn').addEventListener('click', function() {
+    // Logout butonu hover efekti
+    const logoutBtn = document.getElementById('logoutBtn');
+    logoutBtn.addEventListener('mouseenter', function() {
+        this.style.background = '#c0392b';
+    });
+    logoutBtn.addEventListener('mouseleave', function() {
+        this.style.background = '#e74c3c';
+    });
+    
+    // Logout event listener
+    logoutBtn.addEventListener('click', function() {
         if (confirm('Are you sure you want to logout?')) {
             localStorage.clear();
             window.location.href = AUTH_URL;
-        }
-    });
-    
-    document.getElementById('profileBtn').addEventListener('click', async function() {
-        const token = localStorage.getItem('token');
-        if (!token) {
-            alert('Please login again');
-            window.location.href = AUTH_URL;
-            return;
-        }
-        
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/profile`, {
-                headers: {
-                    'Authorization': 'Bearer ' + token
-                }
-            });
-            
-            if (response.ok) {
-                const profile = await response.json();
-                alert(`Profile Information:\n\nEmail: ${profile.email}\nRole: ${profile.role}\nMember since: ${new Date(profile.created_at).toLocaleDateString()}`);
-            } else {
-                alert('Error fetching profile information');
-            }
-        } catch (error) {
-            console.error('Profile fetch error:', error);
-            alert('Error fetching profile information');
         }
     });
 }
