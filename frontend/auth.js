@@ -5,36 +5,14 @@ const STOCKTRACK_URL = 'https://stocktrack1.netlify.app';
 // DOM Elements
 const loginForm = document.getElementById('loginForm');
 const registerLink = document.getElementById('registerLink');
-const forgotPassword = document.getElementById('forgotPassword');
 const loginBtn = document.getElementById('loginBtn');
 const errorMessage = document.getElementById('errorMessage');
 const successMessage = document.getElementById('successMessage');
 const userInfo = document.getElementById('userInfo');
 const userEmail = document.getElementById('userEmail');
 const userRole = document.getElementById('userRole');
-const backendStatus = document.getElementById('backendStatus');
 
-// Check backend connection on load
-async function checkBackendConnection() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/health`);
-        const data = await response.json();
-        
-        if (response.ok) {
-            backendStatus.textContent = 'Connected ✅';
-            backendStatus.style.color = '#4CAF50';
-        } else {
-            backendStatus.textContent = 'Error ❌';
-            backendStatus.style.color = '#ff6b6b';
-        }
-    } catch (error) {
-        backendStatus.textContent = 'Offline ❌';
-        backendStatus.style.color = '#ff6b6b';
-        console.error('Backend connection failed:', error);
-    }
-}
-
-// Check if user is already logged in - DÜZELTİLDİ
+// Check if user is already logged in
 async function checkAuthStatus() {
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
@@ -174,47 +152,8 @@ loginForm.addEventListener('submit', async (e) => {
     }
 });
 
-// Forgot password
-forgotPassword.addEventListener('click', (e) => {
-    e.preventDefault();
-    showError('Password reset feature coming soon!');
-});
-
-// Manual logout function
-function manualLogout() {
-    if (confirm('Are you sure you want to logout?')) {
-        localStorage.clear();
-        window.location.reload();
-    }
-}
-
-// Add logout button if user is logged in
-function addLogoutButton() {
-    const token = localStorage.getItem('token');
-    if (token) {
-        const logoutBtn = document.createElement('button');
-        logoutBtn.textContent = 'Logout';
-        logoutBtn.style.cssText = `
-            background: #e74c3c;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-top: 10px;
-            font-size: 14px;
-        `;
-        logoutBtn.onclick = manualLogout;
-        
-        const form = document.getElementById('loginForm');
-        form.appendChild(logoutBtn);
-    }
-}
-
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Login page initialized');
-    checkBackendConnection();
     checkAuthStatus();
-    addLogoutButton();
 });

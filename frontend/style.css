@@ -91,41 +91,6 @@ form {
     color: #4CAF50;
 }
 
-.links {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 14px;
-    font-family: poppins;
-    margin-bottom: 30px;
-    color: white;
-}
-
-.links label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-}
-
-.links input[type="checkbox"] {
-    cursor: pointer;
-}
-
-.links a {
-    font-weight: 600;
-    color: #4CAF50;
-    text-decoration: none;
-    cursor: pointer;
-    transition: color 0.3s ease;
-}
-
-.links a:hover {
-    color: #45a049;
-    text-decoration: underline;
-}
-
 .btn {
     width: 100%;
     height: 50px;
@@ -234,11 +199,5 @@ form {
     
     .title {
         font-size: 28px;
-    }
-    
-    .links {
-        flex-direction: column;
-        gap: 15px;
-        align-items: flex-start;
     }
 }
