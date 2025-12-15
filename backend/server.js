@@ -7,7 +7,7 @@ const { Pool } = require('pg');
 
 // PostgreSQL connection
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://stocktracker_user:VBl80z6pcfDti6WVw8891QC8LVlzj3xw@dpg-d3psloogjchc73asf1k0-a/stocktracker_3r5s',
+  connectionString: process.env.DATABASE_URL || 'postgresql://project_db_4rrh_user:cNMNSTFHD1Yj9bRCwWU3LEubBkfdLEZF@dpg-d4hgrr9r0fns73a8b92g-a/project_db_4rrh',
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
