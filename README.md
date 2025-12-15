@@ -1,39 +1,44 @@
-# projekt-CRUD-EnesTalha-Kayhan
-## A modern web application for managing product inventory with user authentication.
+# 💱 Currency Exchange Rates App
+A real-time currency exchange rates application that displays current exchange rates from European Central Bank data.
 
-### 🌐 Live Demo
-Main Application: https://stocktrack1.netlify.app/
+# 🚀 Live Demo
+Live Application: https://projekt-exchange-enestalha-kayhan.onrender.com
 
-Login Page: https://authpage67829.netlify.app/
+# ✨ Features
+Real-time exchange rates from Frankfurter.app API
 
-### 🔧 Quick Start
-Prerequisites
-Node.js (version 14 or higher)
+Support for multiple base currencies (USD, EUR, GBP, JPY, etc.)
 
-Local Development
-Install dependencies:
+24-hour change indicators
 
+Auto-refresh every 30 seconds
+
+Responsive design for all devices
+
+Offline support with sample data
+
+# 🛠️ Local Development
+Quick Start
+Download all project files
+
+Open index.html in your web browser
+
+That's it! The app will run locally
+
+Files Needed
 ```bash
-npm install
+index.html
+style.css  
+script.js
 ```
-Start the backend server:
+# 🌐 API
+Uses Frankfurter.app - Free exchange rates API with no key required.
 
-```bash
-npm run dev
-```
-Server runs at: http://localhost:5000
+# 📱 Usage
+Select a base currency from the dropdown
 
-Start the frontend:
+Click "Get Exchange Rates"
 
-```bash
-npx live-server --port=3000
-```
-Frontend runs at: http://localhost:3000
+View real-time rates with change percentages
 
-### 🛠️ Tech Stack
-Frontend: HTML, CSS, JavaScript
-Backend: Node.js, Express.js, PostgreSQL
-
-### 📧 Test Account
-Email: test@test.com
-Password: password
+App auto-updates every 30 seconds
